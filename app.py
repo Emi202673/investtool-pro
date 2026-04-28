@@ -1,26 +1,22 @@
 from flask import Flask, render_template, request, redirect, session
-import random
+import yfinance as yf
 
 app = Flask(__name__)
-app.secret_key = "signal_desk"
+app.secret_key = "real_market"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 💼 portafoglio utente
 portfolio = {}
 
-# 📊 universi titoli
-assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC", "ETH"]
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC-USD", "ETH-USD"]
 
 
-# 🧠 generatore segnali (momentum + mean reversion semplificato)
-def generate_signal(price_change, volatility):
-    score = price_change / (volatility + 1e-6)
-
-    if score > 1:
+# 🧠 segnale semplice su prezzo reale
+def signal_from_price_change(change):
+    if change > 1.5:
         return "BUY"
-    elif score < -1:
+    elif change < -1.5:
         return "SELL"
     else:
         return "HOLD"
@@ -36,44 +32,40 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD OPERATIVA
+# 📊 DASHBOARD REAL MARKET
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
     signals = []
-    recommendations = []
 
     for a in assets:
 
-        price = random.uniform(50, 600)
+        ticker = yf.Ticker(a)
+        data = ticker.history(period="2d")
 
-        # simulazione variazione prezzo
-        price_change = random.gauss(0, 2)
-        volatility = random.uniform(0.5, 3)
+        if len(data) < 2:
+            continue
 
-        signal = generate_signal(price_change, volatility)
+        close_today = data["Close"].iloc[-1]
+        close_prev = data["Close"].iloc[-2]
+
+        change = ((close_today - close_prev) / close_prev) * 100
+
+        signal = signal_from_price_change(change)
 
         signals.append({
             "asset": a,
-            "price": round(price, 2),
-            "change": round(price_change, 2),
-            "vol": round(volatility, 2),
+            "price": round(close_today, 2),
+            "change": round(change, 2),
             "signal": signal
         })
-
-        # 🧠 logica operativa consigliata
-        if signal == "BUY":
-            recommendations.append(f"📈 BUY {a}")
-        elif signal == "SELL":
-            recommendations.append(f"📉 SELL {a}")
 
     return render_template(
         "dashboard.html",
         signals=signals,
-        portfolio=portfolio,
-        recommendations=recommendations
+        portfolio=portfolio
     )
 
 
@@ -81,9 +73,7 @@ def dashboard():
 @app.route("/buy", methods=["POST"])
 def buy():
     asset = request.form.get("asset")
-
     portfolio[asset] = portfolio.get(asset, 0) + 1
-
     return redirect("/dashboard")
 
 
@@ -91,12 +81,10 @@ def buy():
 @app.route("/sell", methods=["POST"])
 def sell():
     asset = request.form.get("asset")
-
     if asset in portfolio:
         portfolio[asset] -= 1
         if portfolio[asset] <= 0:
             del portfolio[asset]
-
     return redirect("/dashboard")
 
 
