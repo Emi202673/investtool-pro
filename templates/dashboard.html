@@ -1,37 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Quant Trading Desk</title>
+    <title>Institutional Quant Desk</title>
 </head>
 <body style="font-family:Arial">
 
-<h1>🏦 QUANT TRADING DESK</h1>
+<h1>🏦 INSTITUTIONAL QUANT DESK</h1>
 
 <p>💰 Capital: {{ capital }}</p>
 <p>📊 Sharpe: {{ sharpe }}</p>
+<p>📉 Volatility: {{ vol }}</p>
+<p>⚠️ VaR 95%: {{ var }}</p>
 
 <hr>
 
-<h2>📡 MARKET SIGNALS</h2>
+<h2>📡 SIGNAL ENGINE</h2>
 
 {% for d in data %}
 <div style="border:1px solid #ddd; padding:10px; margin:10px">
 
-    <b>{{ d.asset }}</b><br>
-    Price: {{ d.price }}<br>
-    Z-score: {{ d.z }}<br>
-    Signal: <b>{{ d.signal }}</b><br>
-    Exposure: {{ d.exposure }}<br>
+<b>{{ d.asset }}</b><br>
+Price: {{ d.price }}<br>
+Return: {{ d.return }}<br>
+Signal: <b>{{ d.signal }}</b><br>
+Exposure: {{ d.exposure }}<br>
 
-    <form method="POST" action="/buy">
-        <input type="hidden" name="asset" value="{{ d.asset }}">
-        <button>LONG</button>
-    </form>
+<form method="POST" action="/buy">
+    <input type="hidden" name="asset" value="{{ d.asset }}">
+    <button>LONG</button>
+</form>
 
-    <form method="POST" action="/sell">
-        <input type="hidden" name="asset" value="{{ d.asset }}">
-        <button>SHORT</button>
-    </form>
+<form method="POST" action="/sell">
+    <input type="hidden" name="asset" value="{{ d.asset }}">
+    <button>SHORT</button>
+</form>
 
 </div>
 {% endfor %}
@@ -39,7 +41,6 @@
 <hr>
 
 <h2>📈 EQUITY CURVE</h2>
-
 {% for e in equity %}
 {{ e }} →
 {% endfor %}
@@ -47,7 +48,6 @@
 <hr>
 
 <h2>🧾 TRADES</h2>
-
 {% for t in trades %}
 <p>{{ t.time }} | {{ t.asset }} | {{ t.type }} | {{ t.pnl }}</p>
 {% endfor %}
