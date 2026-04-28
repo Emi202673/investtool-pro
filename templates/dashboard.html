@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Bloomberg Quant Terminal (Simulazione)</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b0f14;
+    color: #e6e6e6;
+}
+
+.header {
+    background: #111826;
+    padding: 15px;
+    text-align: center;
+    font-size: 22px;
+    color: #00ff99;
+    font-weight: bold;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 10px;
+    padding: 10px;
+}
+
+.panel {
+    background: #141c2b;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+h3 {
+    color: #00ff99;
+    margin-top: 0;
+}
+
+.metric {
+    font-size: 18px;
+    margin: 10px 0;
+}
+
+.green { color: #00ff99; }
+.red { color: #ff4d4d; }
+.yellow { color: #ffcc00; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 8px;
+    border-bottom: 1px solid #222;
+    text-align: center;
+    font-size: 13px;
+}
+
+th {
+    color: #00ff99;
+}
+
+.badge {
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.buy { background: #00aa55; }
+.sell { background: #cc3333; }
+.neutral { background: #555; }
+
+.footer {
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    color: #777;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+🏦 BLOOMBERG QUANT TERMINAL (SIMULAZIONE)
+</div>
+
+<div class="grid">
+
+    <!-- 📊 LEFT PANEL -->
+    <div class="panel">
+        <h3>📊 PORTAFOGLIO</h3>
+
+        <div class="metric green">Capitale: {{ capitale }} €</div>
+        <div class="metric red">VaR: {{ var }}%</div>
+        <div class="metric yellow">Sharpe: {{ sharpe }}</div>
+        <div class="metric">Rischio: {{ rischio }}</div>
+    </div>
+
+    <!-- 📈 CENTER PANEL -->
+    <div class="panel">
+        <h3>📈 SEGNALE MERCATO</h3>
+
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Prezzo</th>
+                <th>Prob</th>
+                <th>Segnale</th>
+            </tr>
+
+            {% for d in data %}
+            <tr>
+                <td>{{ d.asset }}</td>
+                <td>{{ d.prezzo }}</td>
+                <td>{{ d.probabilita }}</td>
+
+                <td>
+                    {% if d.segnale == "ACQUISTA" %}
+                        <span class="badge buy">BUY</span>
+                    {% elif d.segnale == "VENDI" %}
+                        <span class="badge sell">SELL</span>
+                    {% else %}
+                        <span class="badge neutral">NEUTRO</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <!-- 💼 RIGHT PANEL -->
+    <div class="panel">
+        <h3>💼 ORDINI</h3>
+
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Segnale</th>
+                <th>Capitale</th>
+            </tr>
+
+            {% for h in storico %}
+            <tr>
+                <td>{{ h.asset }}</td>
+                <td>{{ h.segnale }}</td>
+                <td>{{ h.capitale }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
+
+<div class="footer">
+Sistema Quant Simulato — Uso educativo / ricerca
+</div>
+
+</body>
+</html>
