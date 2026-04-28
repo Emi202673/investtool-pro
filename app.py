@@ -209,7 +209,9 @@ def dashboard():
         pnl=round(pnl_media(), 2)
     )
 
-
 if __name__ == "__main__":
-    threading.Thread(target=loop).start()
+    t = threading.Thread(target=loop)
+    t.daemon = True
+    t.start()
+
     app.run(host="0.0.0.0", port=5000)
