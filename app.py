@@ -67,7 +67,13 @@ def dashboard():
                 print(a, df.shape)
 
                 if df is None or df.empty:
-                    continue
+    signals.append({
+        "asset": a,
+        "price": 100,
+        "rsi": 50,
+        "signal": "HOLD"
+    })
+    continue
 
                 df = indicators(df)
 
