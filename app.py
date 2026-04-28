@@ -1,43 +1,50 @@
 from flask import Flask, render_template, request, redirect, session
 import random
 import math
-from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "quant_institutional_v4"
+app.secret_key = "portfolio_opt_v1"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 capital = 10000
-trades = []
-equity = [capital]
-returns = []
+
+assets_list = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC", "ETH"]
+
+# 📊 storici rendimenti simulati
+returns_data = {
+    a: [random.gauss(0.001, 0.02) for _ in range(50)]
+    for a in assets_list
+}
 
 
-# 📊 metriche istituzionali
-def volatility():
-    if len(returns) < 2:
-        return 0
-    mean = sum(returns) / len(returns)
-    var = sum((r - mean) ** 2 for r in returns) / len(returns)
-    return round(math.sqrt(var), 4)
+# 📈 media rendimenti
+def mean(r):
+    return sum(r) / len(r)
 
 
-def var_95():
-    if not returns:
-        return 0
-    sorted_r = sorted(returns)
-    index = int(0.05 * len(sorted_r))
-    return round(sorted_r[index], 4)
+# 📉 volatilità
+def vol(r):
+    m = mean(r)
+    return math.sqrt(sum((x - m) ** 2 for x in r) / len(r))
 
 
-def sharpe():
-    if len(returns) < 2:
-        return 0
-    mean = sum(returns) / len(returns)
-    std = math.sqrt(sum((r - mean) ** 2 for r in returns) / len(returns))
-    return round(mean / std, 2) if std != 0 else 0
+# 🧠 score rischio/rendimento
+def score_asset(r):
+    return mean(r) / (vol(r) + 1e-6)
+
+
+# ⚖️ ottimizzazione semplice (softmax dei score)
+def portfolio_weights():
+    scores = {a: score_asset(returns_data[a]) for a in assets_list}
+
+    exp_scores = {a: math.exp(scores[a]) for a in assets_list}
+    total = sum(exp_scores.values())
+
+    weights = {a: exp_scores[a] / total for a in assets_list}
+
+    return weights
 
 
 # 🌐 LOGIN
@@ -50,99 +57,29 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD ISTITUZIONALE
+# 📊 DASHBOARD PORTFOLIO OPT
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
-    assets = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC", "ETH"]
+    weights = portfolio_weights()
 
-    data = []
+    portfolio = []
 
-    for a in assets:
-        price = round(random.uniform(50, 600), 2)
-
-        # 📉 log-return simulato
-        r = random.gauss(0, 0.01)
-        signal_score = r * 100
-
-        if signal_score > 1:
-            signal = "LONG"
-            exposure = 0.02
-        elif signal_score < -1:
-            signal = "SHORT"
-            exposure = -0.02
-        else:
-            signal = "NEUTRAL"
-            exposure = 0
-
-        data.append({
+    for a in assets_list:
+        portfolio.append({
             "asset": a,
-            "price": price,
-            "return": round(r, 5),
-            "signal": signal,
-            "exposure": exposure
+            "mean": round(mean(returns_data[a]), 5),
+            "vol": round(vol(returns_data[a]), 5),
+            "weight": round(weights[a], 4)
         })
 
     return render_template(
         "dashboard.html",
-        data=data,
-        capital=capital,
-        equity=equity[-30:],
-        trades=trades[-15:],
-        vol=volatility(),
-        var=var_95(),
-        sharpe=sharpe()
+        portfolio=portfolio,
+        capital=capital
     )
-
-
-# 🟢 LONG
-@app.route("/buy", methods=["POST"])
-def buy():
-    global capital
-
-    asset = request.form.get("asset")
-
-    r = random.gauss(0.001, 0.01)
-    pnl = capital * r
-
-    capital += pnl
-    returns.append(r)
-    equity.append(capital)
-
-    trades.append({
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "asset": asset,
-        "type": "LONG",
-        "pnl": round(pnl, 2)
-    })
-
-    return redirect("/dashboard")
-
-
-# 🔴 SHORT
-@app.route("/sell", methods=["POST"])
-def sell():
-    global capital
-
-    asset = request.form.get("asset")
-
-    r = random.gauss(-0.001, 0.01)
-    pnl = capital * r
-
-    capital += pnl
-    returns.append(r)
-    equity.append(capital)
-
-    trades.append({
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "asset": asset,
-        "type": "SHORT",
-        "pnl": round(pnl, 2)
-    })
-
-    return redirect("/dashboard")
 
 
 if __name__ == "__main__":
