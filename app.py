@@ -13,22 +13,31 @@ portfolio = {}
 assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
-# 🔥 RSI manuale (stabile)
+# RSI robusto
 def compute_rsi(series, period=14):
     delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
+
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi.fillna(50)  # 🔥 fallback
 
 
-# 🔥 MACD manuale
+# MACD robusto
 def compute_macd(series):
     exp1 = series.ewm(span=12, adjust=False).mean()
     exp2 = series.ewm(span=26, adjust=False).mean()
+
     macd = exp1 - exp2
     signal = macd.ewm(span=9, adjust=False).mean()
-    return macd, signal
+
+    return macd.fillna(0), signal.fillna(0)
 
 
 def get_signal(rsi, macd, signal):
@@ -60,29 +69,38 @@ def dashboard():
         try:
             df = yf.download(a, period="1mo", interval="1d", progress=False)
 
+            if df is None or df.empty:
+                debug.append(f"{a}: NO DATA")
+                continue
+
             debug.append(f"{a}: rows={len(df)}")
 
-            if df.empty:
-                raise Exception("No data")
+            # 🔥 CONVERSIONE SICURA
+            df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
 
+            # 🔥 DROP valori non validi
+            df = df.dropna(subset=["Close"])
+
+            # 🔥 CALCOLI
             df["rsi"] = compute_rsi(df["Close"])
             df["macd"], df["signal"] = compute_macd(df["Close"])
 
             last = df.iloc[-1]
 
-            rsi = float(last["rsi"]) if pd.notna(last["rsi"]) else 50
+            price = float(last["Close"])
+            rsi = float(last["rsi"])
             macd = float(last["macd"])
             signal_val = float(last["signal"])
 
             signals.append({
                 "asset": a,
-                "price": round(float(last["Close"]), 2),
+                "price": round(price, 2),
                 "rsi": round(rsi, 2),
                 "signal": get_signal(rsi, macd, signal_val)
             })
 
         except Exception as e:
-            debug.append(f"{a}: ERROR {str(e)}")
+            debug.append(f"{a}: ERROR -> {str(e)}")
 
     return render_template(
         "dashboard.html",
