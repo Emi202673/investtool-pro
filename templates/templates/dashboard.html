@@ -1,0 +1,26 @@
+<html>
+<body style="background:#111;color:white;font-family:Arial">
+
+<h1>📊 InvestTool PRO</h1>
+
+<table border="1" cellpadding="6">
+<tr>
+<th>Asset</th>
+<th>Prezzo</th>
+<th>RSI</th>
+<th>Decisione</th>
+</tr>
+
+{% for r in data %}
+<tr>
+<td>{{r.asset}}</td>
+<td>{{r.price}}</td>
+<td>{{r.rsi}}</td>
+<td>{{r.decision}}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+</body>
+</html>
