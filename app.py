@@ -3,7 +3,7 @@ import yfinance as yf
 import ta
 
 app = Flask(__name__)
-app.secret_key = "desk"
+app.secret_key = "safe_app"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
@@ -13,95 +13,127 @@ portfolio = {}
 assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
+# 📊 indicatori (sicuri)
 def indicators(df):
-    df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
-    macd = ta.trend.MACD(df["Close"])
-    df["macd"] = macd.macd()
-    df["signal"] = macd.macd_signal()
+    try:
+        df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
+        macd = ta.trend.MACD(df["Close"])
+        df["macd"] = macd.macd()
+        df["signal"] = macd.macd_signal()
+    except:
+        df["rsi"] = 50
+        df["macd"] = 0
+        df["signal"] = 0
     return df
 
 
+# 🧠 segnale sicuro
 def get_signal(row):
-    if row["rsi"] < 30 and row["macd"] > row["signal"]:
-        return "BUY"
-    elif row["rsi"] > 70 and row["macd"] < row["signal"]:
-        return "SELL"
-    return "HOLD"
+    try:
+        if row["rsi"] < 30 and row["macd"] > row["signal"]:
+            return "BUY"
+        elif row["rsi"] > 70 and row["macd"] < row["signal"]:
+            return "SELL"
+        return "HOLD"
+    except:
+        return "HOLD"
 
 
+# 🔐 LOGIN
 @app.route("/", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
-        if request.form.get("user") == USERNAME and request.form.get("pwd") == PASSWORD:
-            session["ok"] = True
-            return redirect("/dashboard")
-    return render_template("login.html")
+    try:
+        if request.method == "POST":
+            if request.form.get("user") == USERNAME and request.form.get("pwd") == PASSWORD:
+                session["ok"] = True
+                return redirect("/dashboard")
+        return render_template("login.html")
+    except:
+        return "Errore login"
+
+
+# 🏦 DASHBOARD (ULTRA STABILE)
 @app.route("/dashboard")
 def dashboard():
-    if not session.get("ok"):
-        return redirect("/")
+    try:
+        if not session.get("ok"):
+            return redirect("/")
 
-    signals = []
+        signals = []
 
-    for a in assets:
-        try:
-            df = yf.download(a, period="3mo", interval="1d")
+        for a in assets:
+            try:
+                df = yf.download(a, period="3mo", interval="1d")
 
-            if df is None or df.empty:
-                continue
+                if df is None or df.empty:
+                    continue
 
-            df = indicators(df)
-            last = df.iloc[-1]
+                df = indicators(df)
 
-            rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
-            macd_score = last["macd"] - last["signal"]
+                last = df.iloc[-1]
 
-            score = (50 - rsi) + (macd_score * 10)
+                close = float(last["Close"]) if last["Close"] == last["Close"] else 0
+                rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
 
-            signals.append({
-                "asset": a,
-                "price": round(float(last["Close"]), 2),
-                "rsi": round(rsi, 2),
-                "signal": get_signal(last),
-                "score": round(score, 2)
-            })
+                signals.append({
+                    "asset": a,
+                    "price": round(close, 2),
+                    "rsi": round(rsi, 2),
+                    "signal": get_signal(last)
+                })
 
-        except Exception as e:
-            print("ERROR:", a, e)
+            except Exception as e:
+                print("ERRORE ASSET:", a, e)
 
-    # 🔴 SE NON CI SONO DATI → NO CRASH
-    if len(signals) == 0:
-        return render_template(
-            "dashboard.html",
-            signals=[{
+        # fallback totale
+        if len(signals) == 0:
+            signals = [{
                 "asset": "NO DATA",
                 "price": 0,
                 "rsi": 0,
-                "signal": "HOLD",
-                "score": 0
-            }],
-            portfolio=portfolio,
-            action="⚪ NO DATA AVAILABLE"
+                "signal": "HOLD"
+            }]
+
+        return render_template(
+            "dashboard.html",
+            signals=signals,
+            portfolio=portfolio
         )
 
-    ranked = sorted(signals, key=lambda x: x["score"], reverse=True)
+    except Exception as e:
+        print("ERRORE DASHBOARD:", e)
+        return "Errore dashboard"
 
-    # 🔴 PROTEZIONE
-    if len(ranked) > 0:
-        top = ranked[0]
 
-        if top["signal"] == "BUY":
-            action = f"🟢 BUY {top['asset']}"
-        elif top["signal"] == "SELL":
-            action = f"🔴 SELL {top['asset']}"
-        else:
-            action = "⚪ HOLD"
-    else:
-        action = "⚪ NO SIGNAL"
+# ➕ AGGIUNGI
+@app.route("/add", methods=["POST"])
+def add():
+    try:
+        asset = request.form.get("asset")
+        qty = float(request.form.get("qty"))
 
-    return render_template(
-        "dashboard.html",
-        signals=ranked,
-        portfolio=portfolio,
-        action=action
-    )
+        portfolio[asset] = portfolio.get(asset, 0) + qty
+        return redirect("/dashboard")
+    except:
+        return redirect("/dashboard")
+
+
+# ➖ RIMUOVI
+@app.route("/remove", methods=["POST"])
+def remove():
+    try:
+        asset = request.form.get("asset")
+        qty = float(request.form.get("qty"))
+
+        if asset in portfolio:
+            portfolio[asset] -= qty
+            if portfolio[asset] <= 0:
+                del portfolio[asset]
+
+        return redirect("/dashboard")
+    except:
+        return redirect("/dashboard")
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
