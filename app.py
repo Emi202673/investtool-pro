@@ -3,48 +3,75 @@ import random
 import math
 
 app = Flask(__name__)
-app.secret_key = "portfolio_opt_v1"
+app.secret_key = "efficient_frontier_v1"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-capital = 10000
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC"]
 
-assets_list = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC", "ETH"]
-
-# 📊 storici rendimenti simulati
-returns_data = {
-    a: [random.gauss(0.001, 0.02) for _ in range(50)]
-    for a in assets_list
+# 📊 rendimenti simulati
+returns = {
+    a: [random.gauss(0.001, 0.02) for _ in range(100)]
+    for a in assets
 }
 
 
-# 📈 media rendimenti
-def mean(r):
-    return sum(r) / len(r)
+# 📈 media
+def mean(x):
+    return sum(x) / len(x)
 
 
 # 📉 volatilità
-def vol(r):
-    m = mean(r)
-    return math.sqrt(sum((x - m) ** 2 for x in r) / len(r))
+def vol(x):
+    m = mean(x)
+    return math.sqrt(sum((i - m) ** 2 for i in x) / len(x))
 
 
-# 🧠 score rischio/rendimento
-def score_asset(r):
-    return mean(r) / (vol(r) + 1e-6)
+# 📊 correlazione semplificata
+def corr(a, b):
+    ma = mean(a)
+    mb = mean(b)
+
+    num = sum((a[i] - ma) * (b[i] - mb) for i in range(len(a)))
+    den = math.sqrt(sum((a[i] - ma) ** 2 for i in range(len(a))) *
+                    sum((b[i] - mb) ** 2 for i in range(len(b))))
+
+    return num / den if den != 0 else 0
 
 
-# ⚖️ ottimizzazione semplice (softmax dei score)
-def portfolio_weights():
-    scores = {a: score_asset(returns_data[a]) for a in assets_list}
+# 🧠 portafoglio random pesato
+def random_portfolio():
+    weights = [random.random() for _ in assets]
+    s = sum(weights)
+    weights = [w / s for w in weights]
 
-    exp_scores = {a: math.exp(scores[a]) for a in assets_list}
-    total = sum(exp_scores.values())
+    port_return = 0
+    port_risk = 0
 
-    weights = {a: exp_scores[a] / total for a in assets_list}
+    # rendimento atteso
+    for i, a in enumerate(assets):
+        port_return += weights[i] * mean(returns[a])
 
-    return weights
+    # rischio semplificato (varianza + correlazione)
+    for i in range(len(assets)):
+        for j in range(len(assets)):
+            wi = weights[i]
+            wj = weights[j]
+            ri = returns[assets[i]]
+            rj = returns[assets[j]]
+
+            port_risk += wi * wj * corr(ri, rj) * vol(ri) * vol(rj)
+
+    port_risk = math.sqrt(abs(port_risk))
+
+    sharpe = port_return / port_risk if port_risk != 0 else 0
+
+    return {
+        "return": port_return,
+        "risk": port_risk,
+        "sharpe": sharpe
+    }
 
 
 # 🌐 LOGIN
@@ -57,28 +84,24 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD PORTFOLIO OPT
+# 📊 EFFICIENT FRONTIER
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
-    weights = portfolio_weights()
+    portfolios = []
 
-    portfolio = []
+    for _ in range(30):  # simuliamo molti portafogli
+        portfolios.append(random_portfolio())
 
-    for a in assets_list:
-        portfolio.append({
-            "asset": a,
-            "mean": round(mean(returns_data[a]), 5),
-            "vol": round(vol(returns_data[a]), 5),
-            "weight": round(weights[a], 4)
-        })
+    # 🏆 migliore Sharpe
+    best = max(portfolios, key=lambda x: x["sharpe"])
 
     return render_template(
         "dashboard.html",
-        portfolio=portfolio,
-        capital=capital
+        portfolios=portfolios,
+        best=best
     )
 
 
