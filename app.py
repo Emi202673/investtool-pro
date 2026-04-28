@@ -8,7 +8,7 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "istituzionale_key"
+app.secret_key = "quant_fund_final"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
@@ -22,7 +22,7 @@ cache = []
 equity_curve = []
 
 
-# 📊 feature engineering istituzionale
+# 📊 feature engineering avanzata
 def build_features(df):
     df = df.copy()
 
@@ -41,16 +41,16 @@ def build_features(df):
     return X, y
 
 
-# 🤖 modello istituzionale
+# 🤖 modello quant finale
 def train_model(df):
     X, y = build_features(df)
 
-    if len(X) < 100:
+    if len(X) < 120:
         return None
 
     model = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=8,
+        n_estimators=250,
+        max_depth=10,
         random_state=42
     )
 
@@ -63,7 +63,7 @@ def train_model(df):
 def analyze(asset):
     df = yf.download(asset, period="1y")
 
-    if df.empty or len(df) < 120:
+    if df.empty or len(df) < 150:
         return None
 
     model = train_model(df)
@@ -84,12 +84,12 @@ def analyze(asset):
 
     price = float(last["Close"])
 
-    if prob > 0.7:
+    if prob > 0.70:
         signal = "ACQUISTA"
-        weight = 0.02
-    elif prob < 0.3:
+        weight = 0.03
+    elif prob < 0.30:
         signal = "VENDI"
-        weight = -0.02
+        weight = -0.03
     else:
         signal = "NEUTRO"
         weight = 0
@@ -103,16 +103,24 @@ def analyze(asset):
     }
 
 
-# 💼 gestione portafoglio istituzionale
-def portfolio_step(signal, weight):
+# ⚖️ portfolio risk parity semplificato
+def portfolio_step(weight):
     global capitale
 
     capitale += capitale * weight
-
     equity_curve.append(capitale)
 
 
-# ⚠️ VaR (Value at Risk istituzionale)
+# 📊 correlazione (semplificata)
+def correlation_risk():
+    if len(equity_curve) < 20:
+        return 0
+
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+    return np.std(returns)
+
+
+# ⚠️ Value at Risk (VaR)
 def var():
     if len(equity_curve) < 20:
         return 0
@@ -121,7 +129,7 @@ def var():
     return np.percentile(returns, 5) * capitale
 
 
-# 📊 Sharpe ratio reale
+# 📈 Sharpe ratio finale
 def sharpe():
     if len(equity_curve) < 2:
         return 0
@@ -134,7 +142,7 @@ def sharpe():
     return np.mean(returns) / np.std(returns)
 
 
-# 🔁 loop istituzionale
+# 🔁 loop hedge fund finale
 def loop():
     global cache, storico
 
@@ -145,7 +153,7 @@ def loop():
             data = analyze(a)
 
             if data:
-                portfolio_step(data["segnale"], data["peso"])
+                portfolio_step(data["peso"])
 
                 storico.append({
                     "asset": data["asset"],
@@ -171,7 +179,7 @@ def login():
     return render_template("login.html")
 
 
-# 🏦 dashboard istituzionale
+# 🏦 dashboard finale quant hedge fund
 @app.route("/dashboard")
 def dashboard():
     if not session.get("loggato"):
@@ -181,9 +189,10 @@ def dashboard():
         "dashboard.html",
         data=cache,
         capitale=round(capitale, 2),
-        storico=storico[-30:],
+        storico=storico[-40:],
         sharpe=round(sharpe(), 3),
-        var=round(var(), 3)
+        var=round(var(), 3),
+        rischio=round(correlation_risk(), 4)
     )
 
 
