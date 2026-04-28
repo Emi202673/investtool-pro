@@ -52,18 +52,28 @@ def dashboard():
         return redirect("/")
 
     signals = []
+    debug = []
 
     for a in assets:
         try:
-            df = yf.download(a, period="1mo", interval="1d", progress=False, threads=False)
+            df = yf.download(
+                a,
+                period="1mo",
+                interval="1d",
+                progress=False,
+                threads=False
+            )
+
+            # DEBUG
+            debug.append(f"{a}: rows={0 if df is None else len(df)}")
 
             if df is None or df.empty:
-                raise Exception("No data")
+                raise Exception("NO DATA")
 
             df = indicators(df)
             last = df.iloc[-1]
 
-            close = float(last["Close"]) if last["Close"] == last["Close"] else 100
+            close = float(last["Close"]) if last["Close"] == last["Close"] else 0
             rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
 
             signals.append({
@@ -74,18 +84,13 @@ def dashboard():
             })
 
         except Exception as e:
-            # 🔥 FALLBACK (SE YFINANCE FALLISCE)
-            signals.append({
-                "asset": a,
-                "price": 100,
-                "rsi": 50,
-                "signal": "HOLD"
-            })
+            debug.append(f"{a}: ERROR")
 
     return render_template(
         "dashboard.html",
         signals=signals,
-        portfolio=portfolio
+        portfolio=portfolio,
+        debug=debug
     )
 
 
