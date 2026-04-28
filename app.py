@@ -3,7 +3,7 @@ import yfinance as yf
 import ta
 
 app = Flask(__name__)
-app.secret_key = "desk_final_v1"
+app.secret_key = "desk"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
@@ -48,7 +48,6 @@ def dashboard():
     for a in assets:
         df = yf.download(a, period="3mo", interval="1d")
         df = indicators(df)
-
         last = df.iloc[-1]
 
         signals.append({
