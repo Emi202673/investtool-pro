@@ -2,164 +2,162 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>Terminale Quant Pro</title>
+<title>Bloomberg Quant Terminal (Simulazione)</title>
 
 <style>
-    body {
-        background: #0a0f1a;
-        color: #e6e6e6;
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-    }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b0f14;
+    color: #e6e6e6;
+}
 
-    h1 {
-        text-align: center;
-        color: #00ff99;
-        margin-top: 20px;
-    }
+.header {
+    background: #111826;
+    padding: 15px;
+    text-align: center;
+    font-size: 22px;
+    color: #00ff99;
+    font-weight: bold;
+}
 
-    .container {
-        width: 95%;
-        margin: auto;
-    }
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 10px;
+    padding: 10px;
+}
 
-    .row {
-        display: flex;
-        gap: 10px;
-        margin-top: 15px;
-        flex-wrap: wrap;
-    }
+.panel {
+    background: #141c2b;
+    padding: 10px;
+    border-radius: 8px;
+}
 
-    .card {
-        flex: 1;
-        min-width: 200px;
-        background: #141c2b;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-    }
+h3 {
+    color: #00ff99;
+    margin-top: 0;
+}
 
-    .green { color: #00ff99; }
-    .red { color: #ff4d4d; }
-    .yellow { color: #ffcc00; }
+.metric {
+    font-size: 18px;
+    margin: 10px 0;
+}
 
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 15px;
-        background: #141c2b;
-        border-radius: 10px;
-        overflow: hidden;
-    }
+.green { color: #00ff99; }
+.red { color: #ff4d4d; }
+.yellow { color: #ffcc00; }
 
-    th, td {
-        padding: 10px;
-        border-bottom: 1px solid #222;
-        text-align: center;
-    }
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
 
-    th {
-        color: #00ff99;
-    }
+th, td {
+    padding: 8px;
+    border-bottom: 1px solid #222;
+    text-align: center;
+    font-size: 13px;
+}
 
-    .badge {
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-weight: bold;
-    }
+th {
+    color: #00ff99;
+}
 
-    .buy { background: #00aa55; }
-    .sell { background: #cc3333; }
-    .neutral { background: #555; }
+.badge {
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
 
-    .chart {
-        margin-top: 20px;
-        background: #141c2b;
-        padding: 15px;
-        border-radius: 10px;
-    }
+.buy { background: #00aa55; }
+.sell { background: #cc3333; }
+.neutral { background: #555; }
+
+.footer {
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+    color: #777;
+}
 </style>
-
 </head>
 
 <body>
 
-<h1>🏦 TERMINALE QUANT PRO</h1>
+<div class="header">
+🏦 BLOOMBERG QUANT TERMINAL (SIMULAZIONE)
+</div>
 
-<div class="container">
+<div class="grid">
 
-    <!-- 📊 KPI -->
-    <div class="row">
+    <!-- 📊 LEFT PANEL -->
+    <div class="panel">
+        <h3>📊 PORTAFOGLIO</h3>
 
-        <div class="card">
-            💰 Capitale<br>
-            <span class="green">{{ capitale }} €</span>
-        </div>
-
-        <div class="card">
-            📉 Drawdown<br>
-            <span class="red">{{ drawdown }}%</span>
-        </div>
-
-        <div class="card">
-            📊 Operazioni<br>
-            <span class="yellow">{{ storico|length }}</span>
-        </div>
-
+        <div class="metric green">Capitale: {{ capitale }} €</div>
+        <div class="metric red">VaR: {{ var }}%</div>
+        <div class="metric yellow">Sharpe: {{ sharpe }}</div>
+        <div class="metric">Rischio: {{ rischio }}</div>
     </div>
 
-    <!-- 📈 SEGNALI -->
-    <h2>📈 Segnali di Mercato</h2>
+    <!-- 📈 CENTER PANEL -->
+    <div class="panel">
+        <h3>📈 SEGNALE MERCATO</h3>
 
-    <table>
-        <tr>
-            <th>Asset</th>
-            <th>Prezzo</th>
-            <th>Probabilità</th>
-            <th>Segnale</th>
-        </tr>
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Prezzo</th>
+                <th>Prob</th>
+                <th>Segnale</th>
+            </tr>
 
-        {% for d in data %}
-        <tr>
-            <td>{{ d.asset }}</td>
-            <td>{{ d.prezzo }}</td>
-            <td>{{ d.probabilita }}</td>
+            {% for d in data %}
+            <tr>
+                <td>{{ d.asset }}</td>
+                <td>{{ d.prezzo }}</td>
+                <td>{{ d.probabilita }}</td>
 
-            <td>
-                {% if d.segnale == "ACQUISTA" %}
-                    <span class="badge buy">ACQUISTA</span>
-                {% elif d.segnale == "VENDI" %}
-                    <span class="badge sell">VENDI</span>
-                {% else %}
-                    <span class="badge neutral">NEUTRO</span>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+                <td>
+                    {% if d.segnale == "ACQUISTA" %}
+                        <span class="badge buy">BUY</span>
+                    {% elif d.segnale == "VENDI" %}
+                        <span class="badge sell">SELL</span>
+                    {% else %}
+                        <span class="badge neutral">NEUTRO</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
 
-    <!-- 💼 STORICO -->
-    <h2>💼 Storico Operazioni</h2>
+    <!-- 💼 RIGHT PANEL -->
+    <div class="panel">
+        <h3>💼 ORDINI</h3>
 
-    <table>
-        <tr>
-            <th>Asset</th>
-            <th>Segnale</th>
-            <th>Prezzo</th>
-            <th>Capitale</th>
-        </tr>
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Segnale</th>
+                <th>Capitale</th>
+            </tr>
 
-        {% for h in storico %}
-        <tr>
-            <td>{{ h.asset }}</td>
-            <td>{{ h.segnale }}</td>
-            <td>{{ h.prezzo }}</td>
-            <td>{{ h.capitale }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+            {% for h in storico %}
+            <tr>
+                <td>{{ h.asset }}</td>
+                <td>{{ h.segnale }}</td>
+                <td>{{ h.capitale }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
 
+</div>
+
+<div class="footer">
+Sistema Quant Simulato — Uso educativo / ricerca
 </div>
 
 </body>
