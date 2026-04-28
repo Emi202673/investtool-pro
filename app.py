@@ -4,29 +4,27 @@ import pandas as pd
 import numpy as np
 import threading
 import time
-
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "trading_desk_pro"
+app.secret_key = "chiave_trading_desk"
 
+# 🔐 login semplice
 USERNAME = "admin"
 PASSWORD = "admin123"
 
+# 📊 asset
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-# 💰 capitale
-capitale_iniziale = 10000
-capitale = capitale_iniziale
-
+# 💰 stato sistema
+capitale = 10000
 storico = []
 cache = []
 equity_curve = []
-pnl_giornaliero = []
 
 
-# 📊 feature engine
-def features(df):
+# 📊 features ML
+def build_features(df):
     df = df.copy()
 
     df["return"] = df["Close"].pct_change()
@@ -44,16 +42,16 @@ def features(df):
     return X, y
 
 
-# 🤖 modello trading desk
-def train(df):
-    X, y = features(df)
+# 🤖 modello
+def train_model(df):
+    X, y = build_features(df)
 
-    if len(X) < 120:
+    if len(X) < 100:
         return None
 
     model = RandomForestClassifier(
-        n_estimators=250,
-        max_depth=10,
+        n_estimators=200,
+        max_depth=8,
         random_state=42
     )
 
@@ -64,52 +62,51 @@ def train(df):
 
 # 📈 analisi asset
 def analyze(asset):
-    df = yf.download(asset, period="1y")
+    try:
+        df = yf.download(asset, period="1y")
 
-if df is None or df.empty or len(df) < 50:
-    return None
+        if df is None or df.empty or len(df) < 100:
+            return None
 
-    if df.empty or len(df) < 150:
+        model = train_model(df)
+        if model is None:
+            return None
+
+        last = df.iloc[-1]
+
+        X_live = pd.DataFrame([{
+            "return": df["Close"].pct_change().iloc[-1],
+            "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
+            "ma10": df["Close"].rolling(10).mean().iloc[-1],
+            "ma30": df["Close"].rolling(30).mean().iloc[-1]
+        }])
+
+        prob = model.predict_proba(X_live)[0][1]
+        price = float(last["Close"])
+
+        if prob > 0.70:
+            signal = "ACQUISTA"
+            weight = 0.02
+        elif prob < 0.30:
+            signal = "VENDI"
+            weight = -0.02
+        else:
+            signal = "NEUTRO"
+            weight = 0
+
+        return {
+            "asset": asset,
+            "prezzo": round(price, 2),
+            "probabilita": round(prob, 2),
+            "segnale": signal,
+            "peso": weight
+        }
+
+    except:
         return None
 
-    model = train(df)
 
-    if model is None:
-        return None
-
-    last = df.iloc[-1]
-
-    row = pd.DataFrame([{
-        "return": df["Close"].pct_change().iloc[-1],
-        "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
-        "ma10": df["Close"].rolling(10).mean().iloc[-1],
-        "ma30": df["Close"].rolling(30).mean().iloc[-1]
-    }])
-
-    prob = model.predict_proba(row)[0][1]
-
-    price = float(last["Close"])
-
-    if prob > 0.72:
-        signal = "BUY"
-        weight = 0.03
-    elif prob < 0.28:
-        signal = "SELL"
-        weight = -0.03
-    else:
-        signal = "HOLD"
-        weight = 0
-
-    return {
-        "asset": asset,
-        "price": round(price, 2),
-        "prob": round(prob, 2),
-        "signal": signal,
-        "weight": weight
-    }
-
-
-# 💼 motore portafoglio desk
+# 💰 esecuzione simulata
 def execute(weight):
     global capitale
 
@@ -117,48 +114,33 @@ def execute(weight):
     capitale += pnl
 
     equity_curve.append(capitale)
-    pnl_giornaliero.append(pnl)
 
 
-# ⚠️ VAR (rischio istituzionale)
+# ⚠️ rischio
 def var():
-    if len(equity_curve) < 20:
+    if len(equity_curve) < 10:
         return 0
-
     returns = np.diff(equity_curve) / equity_curve[:-1]
     return np.percentile(returns, 5) * capitale
 
 
-# 📊 volatilità desk
+def sharpe():
+    if len(equity_curve) < 2:
+        return 0
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+    if np.std(returns) == 0:
+        return 0
+    return np.mean(returns) / np.std(returns)
+
+
 def volatility():
     if len(equity_curve) < 2:
         return 0
-
     returns = np.diff(equity_curve) / equity_curve[:-1]
     return np.std(returns)
 
 
-# 📈 Sharpe ratio
-def sharpe():
-    if len(equity_curve) < 2:
-        return 0
-
-    returns = np.diff(equity_curve) / equity_curve[:-1]
-
-    if np.std(returns) == 0:
-        return 0
-
-    return np.mean(returns) / np.std(returns)
-
-
-# 📉 PnL giornaliero medio
-def pnl_media():
-    if not pnl_giornaliero:
-        return 0
-    return np.mean(pnl_giornaliero)
-
-
-# 🔁 LOOP TRADING DESK
+# 🔁 loop trading
 def loop():
     global cache, storico
 
@@ -169,13 +151,13 @@ def loop():
             data = analyze(a)
 
             if data:
-                execute(data["weight"])
+                execute(data["peso"])
 
                 storico.append({
                     "asset": data["asset"],
-                    "signal": data["signal"],
-                    "price": data["price"],
-                    "capital": round(capitale, 2)
+                    "segnale": data["segnale"],
+                    "prezzo": data["prezzo"],
+                    "capitale": round(capitale, 2)
                 })
 
                 results.append(data)
@@ -195,7 +177,7 @@ def login():
     return render_template("login.html")
 
 
-# 🏦 DASHBOARD TRADING DESK
+# 📊 dashboard (QUESTA È LA PARTE CHE TI MANCAVA)
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
@@ -203,15 +185,16 @@ def dashboard():
 
     return render_template(
         "dashboard.html",
-        data=cache,
+        data=cache if cache else [],
         capitale=round(capitale, 2),
-        storico=storico[-60:],
-        var=round(var(), 3),
-        sharpe=round(sharpe(), 3),
-        volatility=round(volatility(), 4),
-        pnl=round(pnl_media(), 2)
+        storico=storico[-50:] if storico else [],
+        var=round(var(), 4),
+        sharpe=round(sharpe(), 4),
+        rischio=round(volatility(), 4)
     )
 
+
+# 🚀 avvio
 if __name__ == "__main__":
     t = threading.Thread(target=loop)
     t.daemon = True
