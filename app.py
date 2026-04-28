@@ -16,17 +16,14 @@ assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 # RSI robusto
 def compute_rsi(series, period=14):
     delta = series.diff()
-
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
 
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
 
     rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-
-    return rsi.fillna(50)  # 🔥 fallback
+    return (100 - (100 / (1 + rs))).fillna(50)
 
 
 # MACD robusto
@@ -73,30 +70,32 @@ def dashboard():
                 debug.append(f"{a}: NO DATA")
                 continue
 
+            # 🔥 FIX DEFINITIVO MULTIINDEX
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
             debug.append(f"{a}: rows={len(df)}")
 
-            # 🔥 CONVERSIONE SICURA
-            df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
+            if "Close" not in df.columns:
+                raise Exception("Close column missing")
 
-            # 🔥 DROP valori non validi
+            df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
             df = df.dropna(subset=["Close"])
 
-            # 🔥 CALCOLI
             df["rsi"] = compute_rsi(df["Close"])
             df["macd"], df["signal"] = compute_macd(df["Close"])
 
             last = df.iloc[-1]
 
-            price = float(last["Close"])
-            rsi = float(last["rsi"])
-            macd = float(last["macd"])
-            signal_val = float(last["signal"])
-
             signals.append({
                 "asset": a,
-                "price": round(price, 2),
-                "rsi": round(rsi, 2),
-                "signal": get_signal(rsi, macd, signal_val)
+                "price": round(float(last["Close"]), 2),
+                "rsi": round(float(last["rsi"]), 2),
+                "signal": get_signal(
+                    float(last["rsi"]),
+                    float(last["macd"]),
+                    float(last["signal"])
+                )
             })
 
         except Exception as e:
