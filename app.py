@@ -1,60 +1,98 @@
 from flask import Flask, render_template, request, redirect, session
 import yfinance as yf
-import ta
+import pandas as pd
+import numpy as np
 import threading
 import time
 
-app = Flask(__name__)
-app.secret_key = "chiave_segreta_super_sicura"
+from sklearn.ensemble import RandomForestClassifier
 
-# 🔐 login base
+app = Flask(__name__)
+app.secret_key = "chiave_segreta"
+
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 📊 asset monitorati
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-# 💰 simulazione capitale hedge fund
 capital = 10000
 history = []
 cache = []
 
 
-# 🧠 funzione di analisi e decisione
-def analyze_asset(asset):
-    df = yf.download(asset, period="6mo")
+# 🧠 creazione dataset per AI
+def build_dataset(df):
+    df = df.copy()
+    df["return"] = df["Close"].pct_change()
+    df["ma5"] = df["Close"].rolling(5).mean()
+    df["ma20"] = df["Close"].rolling(20).mean()
+    df["rsi"] = 50  # semplificazione stabile
 
-    if df.empty:
+    df = df.dropna()
+
+    df["target"] = np.where(df["Close"].shift(-1) > df["Close"], 1, 0)
+
+    features = df[["return", "ma5", "ma20", "rsi"]]
+    target = df["target"]
+
+    return features, target
+
+
+# 🤖 modello AI
+def train_model(df):
+    X, y = build_dataset(df)
+
+    if len(X) < 50:
         return None
 
-    df["RSI"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
+    model = RandomForestClassifier(n_estimators=50)
+    model.fit(X, y)
+
+    return model
+
+
+# 📊 analisi asset
+def analyze(asset):
+    df = yf.download(asset, period="6mo")
+
+    if df.empty or len(df) < 50:
+        return None
+
+    model = train_model(df)
+
+    if model is None:
+        return None
+
     last = df.iloc[-1]
 
-    rsi = last["RSI"]
+    row = pd.DataFrame([{
+        "return": df["Close"].pct_change().iloc[-1],
+        "ma5": df["Close"].rolling(5).mean().iloc[-1],
+        "ma20": df["Close"].rolling(20).mean().iloc[-1],
+        "rsi": 50
+    }])
+
+    prob = model.predict_proba(row)[0][1]
+
     price = round(last["Close"], 2)
 
-    # 🎯 logica decisionale (semplice ma efficace)
-    if rsi < 30:
+    if prob > 0.6:
         decision = "BUY"
-        score = 2
-    elif rsi > 70:
+    elif prob < 0.4:
         decision = "SELL"
-        score = -1
     else:
         decision = "HOLD"
-        score = 0
 
     return {
         "asset": asset,
         "price": price,
-        "rsi": round(rsi, 2),
-        "decision": decision,
-        "score": score
+        "prob": round(prob, 2),
+        "decision": decision
     }
 
 
-# 💰 simulazione hedge fund
-def simulate_trade(asset, decision, price):
+# 💰 simulazione capitale
+def simulate(decision):
     global capital
 
     if decision == "BUY":
@@ -62,26 +100,27 @@ def simulate_trade(asset, decision, price):
     elif decision == "SELL":
         capital *= 0.99
 
-    history.append({
-        "asset": asset,
-        "decision": decision,
-        "price": price,
-        "capital": round(capital, 2)
-    })
 
-
-# 🔁 loop continuo (aggiornamento ogni 5 min)
+# 🔁 loop
 def loop():
-    global cache
+    global cache, history
 
     while True:
         results = []
 
         for a in ASSETS:
-            data = analyze_asset(a)
+            data = analyze(a)
 
             if data:
-                simulate_trade(data["asset"], data["decision"], data["price"])
+                simulate(data["decision"])
+
+                history.append({
+                    "asset": data["asset"],
+                    "decision": data["decision"],
+                    "price": data["price"],
+                    "capital": round(capital, 2)
+                })
+
                 results.append(data)
 
         cache = results
@@ -109,11 +148,10 @@ def dashboard():
         "dashboard.html",
         data=cache,
         capital=round(capital, 2),
-        history=history[-20:]  # ultimi 20 movimenti
+        history=history[-20:]
     )
 
 
-# 🚀 avvio sistema
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
