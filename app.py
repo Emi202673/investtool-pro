@@ -3,19 +3,18 @@ import yfinance as yf
 import ta
 
 app = Flask(__name__)
-app.secret_key = "ui_trading_desk"
+app.secret_key = "trading_desk_v1"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 💼 portafoglio con quantità
 portfolio = {}
 
 assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
-# 🧠 indicatori
-def indicators(df):
+# 📊 indicatori
+def add_indicators(df):
     df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
     macd = ta.trend.MACD(df["Close"])
     df["macd"] = macd.macd()
@@ -23,7 +22,7 @@ def indicators(df):
     return df
 
 
-# 🧠 segnale
+# 🧠 segnale trading
 def get_signal(row):
     if row["rsi"] < 30 and row["macd"] > row["signal"]:
         return "BUY"
@@ -33,7 +32,7 @@ def get_signal(row):
         return "HOLD"
 
 
-# 🌐 LOGIN
+# 🔐 LOGIN
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -53,17 +52,15 @@ def dashboard():
 
     for a in assets:
         df = yf.download(a, period="3mo", interval="1d")
-        df = indicators(df)
+        df = add_indicators(df)
 
         last = df.iloc[-1]
-
-        sig = get_signal(last)
 
         signals.append({
             "asset": a,
             "price": round(last["Close"], 2),
             "rsi": round(last["rsi"], 2),
-            "signal": sig
+            "signal": get_signal(last)
         })
 
     return render_template(
@@ -73,7 +70,7 @@ def dashboard():
     )
 
 
-# ➕ AGGIUNGI POSIZIONE (quantità)
+# ➕ AGGIUNGI POSIZIONE
 @app.route("/add", methods=["POST"])
 def add():
     asset = request.form.get("asset")
