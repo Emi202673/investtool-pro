@@ -15,18 +15,18 @@
 
 {% for d in data %}
 <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+
     <p><b>{{ d.asset }}</b></p>
     <p>Prezzo: {{ d.prezzo }}</p>
     <p>Segnale: <b>{{ d.segnale }}</b></p>
 
-    <!-- 🟢 TASTI OPERATIVI -->
+    <!-- 🟢 BUY -->
     <form method="POST" action="/buy">
-        <input type="hidden" name="asset" value="{{ d.asset }}">
         <button type="submit">🟢 BUY</button>
     </form>
 
+    <!-- 🔴 SELL -->
     <form method="POST" action="/sell">
-        <input type="hidden" name="asset" value="{{ d.asset }}">
         <button type="submit">🔴 SELL</button>
     </form>
 
