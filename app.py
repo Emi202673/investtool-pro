@@ -36,7 +36,6 @@ def login():
             session["ok"] = True
             return redirect("/dashboard")
     return render_template("login.html")
-
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
@@ -45,40 +44,60 @@ def dashboard():
     signals = []
 
     for a in assets:
-        df = yf.download(a, period="3mo", interval="1d")
+        try:
+            df = yf.download(a, period="3mo", interval="1d")
 
-        if df is None or df.empty:
-            continue
+            if df is None or df.empty:
+                continue
 
-        df = indicators(df)
-        last = df.iloc[-1]
+            df = indicators(df)
+            last = df.iloc[-1]
 
-        rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
-        macd_score = last["macd"] - last["signal"]
+            rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
+            macd_score = last["macd"] - last["signal"]
 
-        # 🧠 ALPHA SCORE (semplificato ma efficace)
-        score = (50 - rsi) + (macd_score * 10)
+            score = (50 - rsi) + (macd_score * 10)
 
-        signals.append({
-            "asset": a,
-            "price": round(last["Close"], 2),
-            "rsi": round(rsi, 2),
-            "signal": get_signal(last),
-            "score": round(score, 2)
-        })
+            signals.append({
+                "asset": a,
+                "price": round(float(last["Close"]), 2),
+                "rsi": round(rsi, 2),
+                "signal": get_signal(last),
+                "score": round(score, 2)
+            })
 
-    # 📊 ranking
+        except Exception as e:
+            print("ERROR:", a, e)
+
+    # 🔴 SE NON CI SONO DATI → NO CRASH
+    if len(signals) == 0:
+        return render_template(
+            "dashboard.html",
+            signals=[{
+                "asset": "NO DATA",
+                "price": 0,
+                "rsi": 0,
+                "signal": "HOLD",
+                "score": 0
+            }],
+            portfolio=portfolio,
+            action="⚪ NO DATA AVAILABLE"
+        )
+
     ranked = sorted(signals, key=lambda x: x["score"], reverse=True)
 
-    # 🔥 decisione principale
-    top = ranked[0]
+    # 🔴 PROTEZIONE
+    if len(ranked) > 0:
+        top = ranked[0]
 
-    if top["signal"] == "BUY":
-        action = f"🟢 BUY {top['asset']} (TOP OPPORTUNITY)"
-    elif top["signal"] == "SELL":
-        action = f"🔴 SELL {top['asset']} (RISK OFF)"
+        if top["signal"] == "BUY":
+            action = f"🟢 BUY {top['asset']}"
+        elif top["signal"] == "SELL":
+            action = f"🔴 SELL {top['asset']}"
+        else:
+            action = "⚪ HOLD"
     else:
-        action = "⚪ NO CLEAR EDGE"
+        action = "⚪ NO SIGNAL"
 
     return render_template(
         "dashboard.html",
