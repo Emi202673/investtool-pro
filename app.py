@@ -1,22 +1,33 @@
 from flask import Flask, render_template, request, redirect, session
 import yfinance as yf
+import pandas as pd
+import ta
 
 app = Flask(__name__)
-app.secret_key = "real_market"
+app.secret_key = "tech_desk"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 portfolio = {}
 
-assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC-USD", "ETH-USD"]
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
-# 🧠 segnale semplice su prezzo reale
-def signal_from_price_change(change):
-    if change > 1.5:
+# 🧠 indicatori tecnici
+def compute_indicators(df):
+    df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
+    macd = ta.trend.MACD(df["Close"])
+    df["macd"] = macd.macd()
+    df["macd_signal"] = macd.macd_signal()
+    return df
+
+
+# 📊 segnale
+def signal(rsi, macd, macd_signal):
+    if rsi < 30 and macd > macd_signal:
         return "BUY"
-    elif change < -1.5:
+    elif rsi > 70 and macd < macd_signal:
         return "SELL"
     else:
         return "HOLD"
@@ -32,7 +43,7 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD REAL MARKET
+# 📊 DASHBOARD TECNICO
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
@@ -42,24 +53,23 @@ def dashboard():
 
     for a in assets:
 
-        ticker = yf.Ticker(a)
-        data = ticker.history(period="2d")
+        df = yf.download(a, period="3mo", interval="1d")
+        df = compute_indicators(df)
 
-        if len(data) < 2:
-            continue
+        latest = df.iloc[-1]
 
-        close_today = data["Close"].iloc[-1]
-        close_prev = data["Close"].iloc[-2]
-
-        change = ((close_today - close_prev) / close_prev) * 100
-
-        signal = signal_from_price_change(change)
+        sig = signal(
+            latest["rsi"],
+            latest["macd"],
+            latest["macd_signal"]
+        )
 
         signals.append({
             "asset": a,
-            "price": round(close_today, 2),
-            "change": round(change, 2),
-            "signal": signal
+            "price": round(latest["Close"], 2),
+            "rsi": round(latest["rsi"], 2),
+            "macd": round(latest["macd"], 2),
+            "signal": sig
         })
 
     return render_template(
