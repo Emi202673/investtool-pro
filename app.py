@@ -63,7 +63,8 @@ def dashboard():
 
         for a in assets:
             try:
-                df = yf.download(a, period="3mo", interval="1d")
+                df = yf.download(a, period="1mo", interval="1d", progress=False, threads=False)
+                print(a, df.shape)
 
                 if df is None or df.empty:
                     continue
