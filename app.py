@@ -2,20 +2,14 @@ from flask import Flask, render_template, request, redirect, session
 import random
 
 app = Flask(__name__)
-app.secret_key = "trading_desk_key"
+app.secret_key = "chiave_trading"
 
-# 👤 login semplice
+# 👤 login
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 💰 capitale simulato
+# 💰 capitale
 capitale = 10000
-
-# 📊 storico operazioni
-storico = []
-
-# 📈 asset simulati
-ASSETS = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC", "ETH"]
 
 
 # 🌐 LOGIN
@@ -38,23 +32,18 @@ def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
+    assets = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC", "ETH"]
+
     data = []
 
-    for a in ASSETS:
-        prezzo = round(random.uniform(50, 600), 2)
-        segnale = random.choice(["BUY", "SELL", "HOLD"])
-
+    for a in assets:
         data.append({
             "asset": a,
-            "prezzo": prezzo,
-            "segnale": segnale
+            "prezzo": round(random.uniform(50, 600), 2),
+            "segnale": random.choice(["BUY", "SELL", "HOLD"])
         })
 
-    return render_template(
-        "dashboard.html",
-        data=data,
-        capitale=capitale
-    )
+    return render_template("dashboard.html", data=data, capitale=capitale)
 
 
 # 🟢 BUY
@@ -62,14 +51,7 @@ def dashboard():
 def buy():
     global capitale
 
-    asset = request.form.get("asset")
-
-    trade_value = capitale * 0.01
-    capitale += trade_value
-
-    storico.append(f"BUY {asset} +{trade_value:.2f}")
-
-    print("BUY:", asset)
+    capitale += capitale * 0.01
 
     return redirect("/dashboard")
 
@@ -79,14 +61,7 @@ def buy():
 def sell():
     global capitale
 
-    asset = request.form.get("asset")
-
-    trade_value = capitale * 0.01
-    capitale -= trade_value
-
-    storico.append(f"SELL {asset} -{trade_value:.2f}")
-
-    print("SELL:", asset)
+    capitale -= capitale * 0.01
 
     return redirect("/dashboard")
 
