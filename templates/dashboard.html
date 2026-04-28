@@ -1,32 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Technical Trading Desk</title>
+    <title>Unified Trading Desk</title>
 </head>
 <body style="font-family:Arial">
 
-<h1>📊 TECHNICAL TRADING DESK</h1>
+<h1>🏦 UNIFIED QUANT TRADING DESK</h1>
 
 <hr>
 
-<h2>🧠 SIGNALS (RSI + MACD)</h2>
+<h2>🔥 WHAT TO DO NOW</h2>
 
-{% for s in signals %}
+{% for a in actions %}
+<h3>{{ a }}</h3>
+{% endfor %}
+
+<hr>
+
+<h2>📊 TOP OPPORTUNITIES (RANKED)</h2>
+
+{% for r in ranked %}
 <div style="border:1px solid #ccc; padding:10px; margin:10px">
 
-<b>{{ s.asset }}</b><br>
-Price: {{ s.price }}<br>
-RSI: {{ s.rsi }}<br>
-MACD: {{ s.macd }}<br>
-Signal: <b>{{ s.signal }}</b><br>
+<b>{{ r.asset }}</b><br>
+Price: {{ r.price }}<br>
+RSI: {{ r.rsi }}<br>
+Signal: <b>{{ r.signal }}</b><br>
+Score: {{ r.score }}<br>
 
 <form method="POST" action="/buy">
-    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <input type="hidden" name="asset" value="{{ r.asset }}">
     <button>BUY</button>
 </form>
 
 <form method="POST" action="/sell">
-    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <input type="hidden" name="asset" value="{{ r.asset }}">
     <button>SELL</button>
 </form>
 
