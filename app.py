@@ -8,58 +8,61 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "chiave_super_sicura"
+app.secret_key = "quant_pro_key"
 
-# 🔐 login base
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 📊 asset
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-# 💰 portfolio simulation
 capital = 10000
 history = []
 cache = []
 equity_curve = []
 
 
-# 🧠 costruzione dataset AI
-def build_dataset(df):
+# 📊 feature engineering avanzata
+def build_features(df):
     df = df.copy()
 
     df["return"] = df["Close"].pct_change()
-    df["ma5"] = df["Close"].rolling(5).mean()
-    df["ma20"] = df["Close"].rolling(20).mean()
+    df["volatility"] = df["return"].rolling(10).std()
+    df["ma10"] = df["Close"].rolling(10).mean()
+    df["ma30"] = df["Close"].rolling(30).mean()
 
     df = df.dropna()
 
     df["target"] = np.where(df["Close"].shift(-1) > df["Close"], 1, 0)
 
-    features = df[["return", "ma5", "ma20"]]
-    target = df["target"]
+    X = df[["return", "volatility", "ma10", "ma30"]]
+    y = df["target"]
 
-    return features, target
+    return X, y
 
 
-# 🤖 training modello
+# 🤖 modello quant
 def train_model(df):
-    X, y = build_dataset(df)
+    X, y = build_features(df)
 
-    if len(X) < 50:
+    if len(X) < 60:
         return None
 
-    model = RandomForestClassifier(n_estimators=50)
+    model = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=6,
+        random_state=42
+    )
+
     model.fit(X, y)
 
     return model
 
 
-# 📊 analisi asset
+# 📈 analisi asset
 def analyze(asset):
-    df = yf.download(asset, period="6mo")
+    df = yf.download(asset, period="1y")
 
-    if df.empty or len(df) < 60:
+    if df.empty or len(df) < 80:
         return None
 
     model = train_model(df)
@@ -69,53 +72,57 @@ def analyze(asset):
 
     last = df.iloc[-1]
 
-    row = pd.DataFrame([{
+    features = pd.DataFrame([{
         "return": df["Close"].pct_change().iloc[-1],
-        "ma5": df["Close"].rolling(5).mean().iloc[-1],
-        "ma20": df["Close"].rolling(20).mean().iloc[-1]
+        "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
+        "ma10": df["Close"].rolling(10).mean().iloc[-1],
+        "ma30": df["Close"].rolling(30).mean().iloc[-1]
     }])
 
-    prob = model.predict_proba(row)[0][1]
+    prob = model.predict_proba(features)[0][1]
 
     price = round(last["Close"], 2)
 
-    if prob > 0.6:
-        decision = "BUY"
-    elif prob < 0.4:
-        decision = "SELL"
+    if prob > 0.65:
+        signal = "BUY"
+    elif prob < 0.35:
+        signal = "SELL"
     else:
-        decision = "HOLD"
+        signal = "HOLD"
 
     return {
         "asset": asset,
         "price": price,
         "prob": round(prob, 2),
-        "decision": decision
+        "signal": signal
     }
 
 
-# 💰 simulazione hedge fund
-def simulate(decision):
+# 💰 portfolio allocation intelligente
+def allocate(signal):
     global capital
 
-    if decision == "BUY":
-        capital *= 1.01
-    elif decision == "SELL":
-        capital *= 0.99
+    if signal == "BUY":
+        capital *= 1.015
+    elif signal == "SELL":
+        capital *= 0.985
 
     equity_curve.append(capital)
 
 
-# 📉 drawdown
-def calculate_drawdown():
-    if not equity_curve:
+# 📉 Sharpe ratio simulato
+def sharpe():
+    if len(equity_curve) < 2:
         return 0
 
-    peak = max(equity_curve)
-    return (peak - capital) / peak * 100 if peak > 0 else 0
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+    if np.std(returns) == 0:
+        return 0
+
+    return np.mean(returns) / np.std(returns)
 
 
-# 🔁 loop principale
+# 🔁 loop quant
 def loop():
     global cache, history
 
@@ -126,11 +133,11 @@ def loop():
             data = analyze(a)
 
             if data:
-                simulate(data["decision"])
+                allocate(data["signal"])
 
                 history.append({
                     "asset": data["asset"],
-                    "decision": data["decision"],
+                    "signal": data["signal"],
                     "price": data["price"],
                     "capital": round(capital, 2)
                 })
@@ -152,7 +159,7 @@ def login():
     return render_template("login.html")
 
 
-# 📊 dashboard
+# 📊 dashboard quant pro
 @app.route("/dashboard")
 def dashboard():
     if not session.get("logged"):
@@ -162,12 +169,11 @@ def dashboard():
         "dashboard.html",
         data=cache,
         capital=round(capital, 2),
-        history=history[-20:],
-        drawdown=round(calculate_drawdown(), 2)
+        history=history[-30:],
+        sharpe=round(sharpe(), 3)
     )
 
 
-# 🚀 avvio
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
