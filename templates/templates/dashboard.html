@@ -1,164 +1,164 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Hedge Fund Terminal</title>
+<meta charset="UTF-8">
+<title>Terminale Quant Pro</title>
 
-    <style>
-        body {
-            background-color: #0b0f14;
-            color: #e6e6e6;
-            font-family: Arial, sans-serif;
-        }
+<style>
+    body {
+        background: #0a0f1a;
+        color: #e6e6e6;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
 
-        .container {
-            width: 95%;
-            margin: auto;
-        }
+    h1 {
+        text-align: center;
+        color: #00ff99;
+        margin-top: 20px;
+    }
 
-        h1 {
-            color: #00ff99;
-            text-align: center;
-            margin-top: 20px;
-        }
+    .container {
+        width: 95%;
+        margin: auto;
+    }
 
-        .panel {
-            background-color: #111826;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 10px;
-        }
+    .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
 
-        .metrics {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
+    .card {
+        flex: 1;
+        min-width: 200px;
+        background: #141c2b;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+    }
 
-        .box {
-            background-color: #1a2332;
-            padding: 15px;
-            margin: 10px;
-            flex: 1;
-            min-width: 200px;
-            border-radius: 8px;
-            text-align: center;
-        }
+    .green { color: #00ff99; }
+    .red { color: #ff4d4d; }
+    .yellow { color: #ffcc00; }
 
-        .green { color: #00ff99; }
-        .red { color: #ff4d4d; }
-        .yellow { color: #ffcc00; }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: #141c2b;
+        border-radius: 10px;
+        overflow: hidden;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
+    th, td {
+        padding: 10px;
+        border-bottom: 1px solid #222;
+        text-align: center;
+    }
 
-        th, td {
-            border-bottom: 1px solid #333;
-            padding: 10px;
-            text-align: center;
-        }
+    th {
+        color: #00ff99;
+    }
 
-        th {
-            color: #00ff99;
-        }
+    .badge {
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+    }
 
-        .badge {
-            padding: 5px 10px;
-            border-radius: 5px;
-        }
+    .buy { background: #00aa55; }
+    .sell { background: #cc3333; }
+    .neutral { background: #555; }
 
-        .buy { background-color: #00aa55; }
-        .sell { background-color: #cc3333; }
-        .neutral { background-color: #555; }
-    </style>
+    .chart {
+        margin-top: 20px;
+        background: #141c2b;
+        padding: 15px;
+        border-radius: 10px;
+    }
+</style>
+
 </head>
 
 <body>
 
+<h1>🏦 TERMINALE QUANT PRO</h1>
+
 <div class="container">
 
-    <h1>🏦 HEDGE FUND TERMINAL</h1>
+    <!-- 📊 KPI -->
+    <div class="row">
 
-    <!-- 📊 METRICHE PRINCIPALI -->
-    <div class="panel metrics">
-
-        <div class="box">
-            💰 <br>
-            <strong class="green">{{ capitale }} €</strong>
-            <br> Capitale Totale
+        <div class="card">
+            💰 Capitale<br>
+            <span class="green">{{ capitale }} €</span>
         </div>
 
-        <div class="box">
-            📉 <br>
-            <strong class="red">{{ drawdown }}%</strong>
-            <br> Drawdown
+        <div class="card">
+            📉 Drawdown<br>
+            <span class="red">{{ drawdown }}%</span>
         </div>
 
-        <div class="box">
-            📊 <br>
-            <strong class="yellow">30</strong>
-            <br> Operazioni recenti
+        <div class="card">
+            📊 Operazioni<br>
+            <span class="yellow">{{ storico|length }}</span>
         </div>
 
     </div>
 
-    <!-- 📈 ASSET -->
-    <div class="panel">
-        <h2>📈 Segnali di Mercato</h2>
+    <!-- 📈 SEGNALI -->
+    <h2>📈 Segnali di Mercato</h2>
 
-        <table>
-            <tr>
-                <th>Asset</th>
-                <th>Prezzo</th>
-                <th>Probabilità</th>
-                <th>Segnale</th>
-            </tr>
+    <table>
+        <tr>
+            <th>Asset</th>
+            <th>Prezzo</th>
+            <th>Probabilità</th>
+            <th>Segnale</th>
+        </tr>
 
-            {% for d in data %}
-            <tr>
-                <td>{{ d.asset }}</td>
-                <td>{{ d.prezzo }}</td>
-                <td>{{ d.probabilita }}</td>
+        {% for d in data %}
+        <tr>
+            <td>{{ d.asset }}</td>
+            <td>{{ d.prezzo }}</td>
+            <td>{{ d.probabilita }}</td>
 
-                <td>
-                    {% if d.segnale == "ACQUISTA" %}
-                        <span class="badge buy">ACQUISTA</span>
-                    {% elif d.segnale == "VENDI" %}
-                        <span class="badge sell">VENDI</span>
-                    {% else %}
-                        <span class="badge neutral">NEUTRO</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
+            <td>
+                {% if d.segnale == "ACQUISTA" %}
+                    <span class="badge buy">ACQUISTA</span>
+                {% elif d.segnale == "VENDI" %}
+                    <span class="badge sell">VENDI</span>
+                {% else %}
+                    <span class="badge neutral">NEUTRO</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
 
     <!-- 💼 STORICO -->
-    <div class="panel">
-        <h2>💼 Storico Operazioni</h2>
+    <h2>💼 Storico Operazioni</h2>
 
-        <table>
-            <tr>
-                <th>Asset</th>
-                <th>Segnale</th>
-                <th>Prezzo</th>
-                <th>Capitale</th>
-            </tr>
+    <table>
+        <tr>
+            <th>Asset</th>
+            <th>Segnale</th>
+            <th>Prezzo</th>
+            <th>Capitale</th>
+        </tr>
 
-            {% for h in storico %}
-            <tr>
-                <td>{{ h.asset }}</td>
-                <td>{{ h.segnale }}</td>
-                <td>{{ h.prezzo }}</td>
-                <td>{{ h.capitale }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
+        {% for h in storico %}
+        <tr>
+            <td>{{ h.asset }}</td>
+            <td>{{ h.segnale }}</td>
+            <td>{{ h.prezzo }}</td>
+            <td>{{ h.capitale }}</td>
+        </tr>
+        {% endfor %}
+    </table>
 
 </div>
 
