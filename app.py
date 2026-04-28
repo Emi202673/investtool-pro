@@ -8,22 +8,21 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "quant_fund_final"
+app.secret_key = "live_quant_system"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-# 💰 capitale iniziale
 capitale = 10000
 storico = []
 cache = []
 equity_curve = []
 
 
-# 📊 feature engineering avanzata
-def build_features(df):
+# 📊 feature real-time
+def features(df):
     df = df.copy()
 
     df["return"] = df["Close"].pct_change()
@@ -41,16 +40,16 @@ def build_features(df):
     return X, y
 
 
-# 🤖 modello quant finale
-def train_model(df):
-    X, y = build_features(df)
+# 🤖 modello live
+def train(df):
+    X, y = features(df)
 
-    if len(X) < 120:
+    if len(X) < 100:
         return None
 
     model = RandomForestClassifier(
-        n_estimators=250,
-        max_depth=10,
+        n_estimators=200,
+        max_depth=8,
         random_state=42
     )
 
@@ -59,28 +58,28 @@ def train_model(df):
     return model
 
 
-# 📈 analisi asset
+# 📈 analisi live asset
 def analyze(asset):
-    df = yf.download(asset, period="1y")
+    df = yf.download(asset, period="1y", interval="1d")
 
-    if df.empty or len(df) < 150:
+    if df.empty or len(df) < 120:
         return None
 
-    model = train_model(df)
+    model = train(df)
 
     if model is None:
         return None
 
     last = df.iloc[-1]
 
-    features = pd.DataFrame([{
+    row = pd.DataFrame([{
         "return": df["Close"].pct_change().iloc[-1],
         "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
         "ma10": df["Close"].rolling(10).mean().iloc[-1],
-        "ma30": df["Close"].rolling(30).mean().iloc[-1]
+        "ma30": df["Close"].rolling(10).mean().iloc[-1]
     }])
 
-    prob = model.predict_proba(features)[0][1]
+    prob = model.predict_proba(row)[0][1]
 
     price = float(last["Close"])
 
@@ -103,16 +102,16 @@ def analyze(asset):
     }
 
 
-# ⚖️ portfolio risk parity semplificato
-def portfolio_step(weight):
+# 💰 motore capitale live
+def execute(weight):
     global capitale
 
     capitale += capitale * weight
     equity_curve.append(capitale)
 
 
-# 📊 correlazione (semplificata)
-def correlation_risk():
+# 📊 rischio live
+def risk():
     if len(equity_curve) < 20:
         return 0
 
@@ -120,7 +119,7 @@ def correlation_risk():
     return np.std(returns)
 
 
-# ⚠️ Value at Risk (VaR)
+# ⚠️ VaR live
 def var():
     if len(equity_curve) < 20:
         return 0
@@ -129,7 +128,7 @@ def var():
     return np.percentile(returns, 5) * capitale
 
 
-# 📈 Sharpe ratio finale
+# 📈 Sharpe live
 def sharpe():
     if len(equity_curve) < 2:
         return 0
@@ -142,7 +141,7 @@ def sharpe():
     return np.mean(returns) / np.std(returns)
 
 
-# 🔁 loop hedge fund finale
+# 🔁 LIVE LOOP (aggiornamento continuo)
 def loop():
     global cache, storico
 
@@ -153,7 +152,7 @@ def loop():
             data = analyze(a)
 
             if data:
-                portfolio_step(data["peso"])
+                execute(data["peso"])
 
                 storico.append({
                     "asset": data["asset"],
@@ -165,7 +164,9 @@ def loop():
                 results.append(data)
 
         cache = results
-        time.sleep(300)
+
+        # 🔥 aggiornamento più rapido = “live feeling”
+        time.sleep(60)
 
 
 # 🌐 login
@@ -179,7 +180,7 @@ def login():
     return render_template("login.html")
 
 
-# 🏦 dashboard finale quant hedge fund
+# 📡 dashboard live
 @app.route("/dashboard")
 def dashboard():
     if not session.get("loggato"):
@@ -189,10 +190,10 @@ def dashboard():
         "dashboard.html",
         data=cache,
         capitale=round(capitale, 2),
-        storico=storico[-40:],
+        storico=storico[-50:],
         sharpe=round(sharpe(), 3),
         var=round(var(), 3),
-        rischio=round(correlation_risk(), 4)
+        rischio=round(risk(), 4)
     )
 
 
