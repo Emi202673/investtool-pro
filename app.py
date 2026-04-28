@@ -8,37 +8,41 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "chiave_segreta"
+app.secret_key = "chiave_super_sicura"
 
+# 🔐 login base
 USERNAME = "admin"
 PASSWORD = "admin123"
 
+# 📊 asset
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
+# 💰 portfolio simulation
 capital = 10000
 history = []
 cache = []
+equity_curve = []
 
 
-# 🧠 creazione dataset per AI
+# 🧠 costruzione dataset AI
 def build_dataset(df):
     df = df.copy()
+
     df["return"] = df["Close"].pct_change()
     df["ma5"] = df["Close"].rolling(5).mean()
     df["ma20"] = df["Close"].rolling(20).mean()
-    df["rsi"] = 50  # semplificazione stabile
 
     df = df.dropna()
 
     df["target"] = np.where(df["Close"].shift(-1) > df["Close"], 1, 0)
 
-    features = df[["return", "ma5", "ma20", "rsi"]]
+    features = df[["return", "ma5", "ma20"]]
     target = df["target"]
 
     return features, target
 
 
-# 🤖 modello AI
+# 🤖 training modello
 def train_model(df):
     X, y = build_dataset(df)
 
@@ -55,7 +59,7 @@ def train_model(df):
 def analyze(asset):
     df = yf.download(asset, period="6mo")
 
-    if df.empty or len(df) < 50:
+    if df.empty or len(df) < 60:
         return None
 
     model = train_model(df)
@@ -68,8 +72,7 @@ def analyze(asset):
     row = pd.DataFrame([{
         "return": df["Close"].pct_change().iloc[-1],
         "ma5": df["Close"].rolling(5).mean().iloc[-1],
-        "ma20": df["Close"].rolling(20).mean().iloc[-1],
-        "rsi": 50
+        "ma20": df["Close"].rolling(20).mean().iloc[-1]
     }])
 
     prob = model.predict_proba(row)[0][1]
@@ -91,7 +94,7 @@ def analyze(asset):
     }
 
 
-# 💰 simulazione capitale
+# 💰 simulazione hedge fund
 def simulate(decision):
     global capital
 
@@ -100,8 +103,19 @@ def simulate(decision):
     elif decision == "SELL":
         capital *= 0.99
 
+    equity_curve.append(capital)
 
-# 🔁 loop
+
+# 📉 drawdown
+def calculate_drawdown():
+    if not equity_curve:
+        return 0
+
+    peak = max(equity_curve)
+    return (peak - capital) / peak * 100 if peak > 0 else 0
+
+
+# 🔁 loop principale
 def loop():
     global cache, history
 
@@ -148,10 +162,12 @@ def dashboard():
         "dashboard.html",
         data=cache,
         capital=round(capital, 2),
-        history=history[-20:]
+        history=history[-20:],
+        drawdown=round(calculate_drawdown(), 2)
     )
 
 
+# 🚀 avvio
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
