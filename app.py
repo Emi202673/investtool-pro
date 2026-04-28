@@ -13,7 +13,6 @@ portfolio = {}
 assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
-# 📊 indicatori (sicuri)
 def indicators(df):
     try:
         df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
@@ -27,7 +26,6 @@ def indicators(df):
     return df
 
 
-# 🧠 segnale sicuro
 def get_signal(row):
     try:
         if row["rsi"] < 30 and row["macd"] > row["signal"]:
@@ -39,107 +37,77 @@ def get_signal(row):
         return "HOLD"
 
 
-# 🔐 LOGIN
 @app.route("/", methods=["GET", "POST"])
 def login():
-    try:
-        if request.method == "POST":
-            if request.form.get("user") == USERNAME and request.form.get("pwd") == PASSWORD:
-                session["ok"] = True
-                return redirect("/dashboard")
-        return render_template("login.html")
-    except:
-        return "Errore login"
+    if request.method == "POST":
+        if request.form.get("user") == USERNAME and request.form.get("pwd") == PASSWORD:
+            session["ok"] = True
+            return redirect("/dashboard")
+    return render_template("login.html")
 
 
-# 🏦 DASHBOARD (ULTRA STABILE)
 @app.route("/dashboard")
 def dashboard():
-    try:
-        if not session.get("ok"):
-            return redirect("/")
+    if not session.get("ok"):
+        return redirect("/")
 
-        signals = []
+    signals = []
 
-        for a in assets:
-            try:
-                df = yf.download(a, period="1mo", interval="1d", progress=False, threads=False)
-                print(a, df.shape)
+    for a in assets:
+        try:
+            df = yf.download(a, period="1mo", interval="1d", progress=False, threads=False)
 
-                if df is None or df.empty:
-    signals.append({
-        "asset": a,
-        "price": 100,
-        "rsi": 50,
-        "signal": "HOLD"
-    })
-    continue
+            if df is None or df.empty:
+                raise Exception("No data")
 
-                df = indicators(df)
+            df = indicators(df)
+            last = df.iloc[-1]
 
-                last = df.iloc[-1]
+            close = float(last["Close"]) if last["Close"] == last["Close"] else 100
+            rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
 
-                close = float(last["Close"]) if last["Close"] == last["Close"] else 0
-                rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
+            signals.append({
+                "asset": a,
+                "price": round(close, 2),
+                "rsi": round(rsi, 2),
+                "signal": get_signal(last)
+            })
 
-                signals.append({
-                    "asset": a,
-                    "price": round(close, 2),
-                    "rsi": round(rsi, 2),
-                    "signal": get_signal(last)
-                })
-
-            except Exception as e:
-                print("ERRORE ASSET:", a, e)
-
-        # fallback totale
-        if len(signals) == 0:
-            signals = [{
-                "asset": "NO DATA",
-                "price": 0,
-                "rsi": 0,
+        except Exception as e:
+            # 🔥 FALLBACK (SE YFINANCE FALLISCE)
+            signals.append({
+                "asset": a,
+                "price": 100,
+                "rsi": 50,
                 "signal": "HOLD"
-            }]
+            })
 
-        return render_template(
-            "dashboard.html",
-            signals=signals,
-            portfolio=portfolio
-        )
-
-    except Exception as e:
-        print("ERRORE DASHBOARD:", e)
-        return "Errore dashboard"
+    return render_template(
+        "dashboard.html",
+        signals=signals,
+        portfolio=portfolio
+    )
 
 
-# ➕ AGGIUNGI
 @app.route("/add", methods=["POST"])
 def add():
-    try:
-        asset = request.form.get("asset")
-        qty = float(request.form.get("qty"))
-
-        portfolio[asset] = portfolio.get(asset, 0) + qty
-        return redirect("/dashboard")
-    except:
-        return redirect("/dashboard")
+    asset = request.form.get("asset")
+    qty = float(request.form.get("qty"))
+    portfolio[asset] = portfolio.get(asset, 0) + qty
+    return redirect("/dashboard")
 
 
-# ➖ RIMUOVI
 @app.route("/remove", methods=["POST"])
 def remove():
-    try:
-        asset = request.form.get("asset")
-        qty = float(request.form.get("qty"))
+    asset = request.form.get("asset")
+    qty = float(request.form.get("qty"))
 
-        if asset in portfolio:
-            portfolio[asset] -= qty
-            if portfolio[asset] <= 0:
-                del portfolio[asset]
+    if asset in portfolio:
+        portfolio[asset] -= qty
+        if portfolio[asset] <= 0:
+            del portfolio[asset]
 
-        return redirect("/dashboard")
-    except:
-        return redirect("/dashboard")
+    return redirect("/dashboard")
 
 
 if __name__ == "__main__":
