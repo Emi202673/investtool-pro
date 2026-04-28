@@ -2,110 +2,49 @@
 <html>
 <head>
     <title>Trading Desk</title>
-
-    <style>
-        body {
-            margin:0;
-            font-family: Arial;
-            background:#0b0f14;
-            color:white;
-        }
-
-        .header {
-            <div style="background:#111827; padding:15px; margin:10px;">
-    <h2>🔥 ACTION ENGINE</h2>
-    <h1>{{ action }}</h1>
-</div>
-            padding:15px;
-            background:#111827;
-            font-size:20px;
-            font-weight:bold;
-        }
-
-        .container {
-            display:flex;
-        }
-
-        .panel {
-            flex:1;
-            padding:15px;
-        }
-
-        .card {
-            background:#1f2937;
-            padding:10px;
-            margin:10px 0;
-            border-radius:8px;
-        }
-
-        .buy { color:#00ff88; font-weight:bold; }
-        .sell { color:#ff4d4d; font-weight:bold; }
-        .hold { color:#aaa; }
-
-        button {
-            padding:6px;
-            margin-top:5px;
-            cursor:pointer;
-        }
-
-        .buybtn { background:#00ff88; }
-        .sellbtn { background:#ff4d4d; }
-    </style>
 </head>
 
-<body>
+<body style="background:#0b0f14; color:white; font-family:Arial;">
 
-<div class="header">🏦 TRADING DESK</div>
+<h1>🏦 TRADING DESK</h1>
 
-<div class="container">
+<h2>📊 SIGNALS</h2>
 
-    <div class="panel">
+{% for s in signals %}
+<div style="margin:10px; padding:10px; background:#1f2937">
 
-        <h3>📊 SIGNALS</h3>
+    <b>{{ s.asset }}</b><br>
+    Price: {{ s.price }}<br>
+    RSI: {{ s.rsi }}<br>
 
-        {% for s in signals %}
-        <div class="card">
+    {% if s.signal == "BUY" %}
+        <span style="color:lime">🟢 BUY</span>
+    {% elif s.signal == "SELL" %}
+        <span style="color:red">🔴 SELL</span>
+    {% else %}
+        <span style="color:gray">⚪ HOLD</span>
+    {% endif %}
 
-            <b>{{ s.asset }}</b><br>
-            Price: {{ s.price }}<br>
-            RSI: {{ s.rsi }}<br>
+    <form method="POST" action="/add">
+        <input type="hidden" name="asset" value="{{ s.asset }}">
+        <input type="number" name="qty" step="0.1">
+        <button>ADD</button>
+    </form>
 
-            {% if s.signal == "BUY" %}
-                <span class="buy">🟢 BUY</span>
-            {% elif s.signal == "SELL" %}
-                <span class="sell">🔴 SELL</span>
-            {% else %}
-                <span class="hold">⚪ HOLD</span>
-            {% endif %}
-
-            <form method="POST" action="/add">
-                <input type="hidden" name="asset" value="{{ s.asset }}">
-                <input type="number" name="qty" step="0.1">
-                <button class="buybtn">ADD</button>
-            </form>
-
-            <form method="POST" action="/remove">
-                <input type="hidden" name="asset" value="{{ s.asset }}">
-                <input type="number" name="qty" step="0.1">
-                <button class="sellbtn">REMOVE</button>
-            </form>
-
-        </div>
-        {% endfor %}
-
-    </div>
-
-    <div class="panel">
-
-        <h3>💼 PORTFOLIO</h3>
-
-        {% for k, v in portfolio.items() %}
-            <div class="card">📦 {{ k }} → {{ v }}</div>
-        {% endfor %}
-
-    </div>
+    <form method="POST" action="/remove">
+        <input type="hidden" name="asset" value="{{ s.asset }}">
+        <input type="number" name="qty" step="0.1">
+        <button>REMOVE</button>
+    </form>
 
 </div>
+{% endfor %}
+
+<h2>💼 PORTFOLIO</h2>
+
+{% for k, v in portfolio.items() %}
+<div>{{ k }} → {{ v }}</div>
+{% endfor %}
 
 </body>
 </html>
