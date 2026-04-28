@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, session
 import yfinance as yf
-import ta
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = "safe_app"
@@ -13,28 +13,30 @@ portfolio = {}
 assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
-def indicators(df):
-    try:
-        df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
-        macd = ta.trend.MACD(df["Close"])
-        df["macd"] = macd.macd()
-        df["signal"] = macd.macd_signal()
-    except:
-        df["rsi"] = 50
-        df["macd"] = 0
-        df["signal"] = 0
-    return df
+# 🔥 RSI manuale (stabile)
+def compute_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 
-def get_signal(row):
-    try:
-        if row["rsi"] < 30 and row["macd"] > row["signal"]:
-            return "BUY"
-        elif row["rsi"] > 70 and row["macd"] < row["signal"]:
-            return "SELL"
-        return "HOLD"
-    except:
-        return "HOLD"
+# 🔥 MACD manuale
+def compute_macd(series):
+    exp1 = series.ewm(span=12, adjust=False).mean()
+    exp2 = series.ewm(span=26, adjust=False).mean()
+    macd = exp1 - exp2
+    signal = macd.ewm(span=9, adjust=False).mean()
+    return macd, signal
+
+
+def get_signal(rsi, macd, signal):
+    if rsi < 30 and macd > signal:
+        return "BUY"
+    elif rsi > 70 and macd < signal:
+        return "SELL"
+    return "HOLD"
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -56,35 +58,31 @@ def dashboard():
 
     for a in assets:
         try:
-            df = yf.download(
-                a,
-                period="1mo",
-                interval="1d",
-                progress=False,
-                threads=False
-            )
+            df = yf.download(a, period="1mo", interval="1d", progress=False)
 
-            # DEBUG
-            debug.append(f"{a}: rows={0 if df is None else len(df)}")
+            debug.append(f"{a}: rows={len(df)}")
 
-            if df is None or df.empty:
-                raise Exception("NO DATA")
+            if df.empty:
+                raise Exception("No data")
 
-            df = indicators(df)
+            df["rsi"] = compute_rsi(df["Close"])
+            df["macd"], df["signal"] = compute_macd(df["Close"])
+
             last = df.iloc[-1]
 
-            close = float(last["Close"]) if last["Close"] == last["Close"] else 0
-            rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
+            rsi = float(last["rsi"]) if pd.notna(last["rsi"]) else 50
+            macd = float(last["macd"])
+            signal_val = float(last["signal"])
 
             signals.append({
                 "asset": a,
-                "price": round(close, 2),
+                "price": round(float(last["Close"]), 2),
                 "rsi": round(rsi, 2),
-                "signal": get_signal(last)
+                "signal": get_signal(rsi, macd, signal_val)
             })
 
         except Exception as e:
-            debug.append(f"{a}: ERROR")
+            debug.append(f"{a}: ERROR {str(e)}")
 
     return render_template(
         "dashboard.html",
