@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Trading Desk</title>
+    <title>Hedge Fund Desk</title>
 
     <style>
         body {
             margin:0;
             font-family: Arial;
-            background:#0b0f14;
+            background:#0a0f1c;
             color:white;
         }
 
@@ -18,7 +18,7 @@
             font-weight:bold;
         }
 
-        .container {
+        .grid {
             display:flex;
         }
 
@@ -38,27 +38,29 @@
         .sell { color:#ff4d4d; font-weight:bold; }
         .hold { color:#aaa; }
 
-        button {
-            padding:6px;
-            margin-top:5px;
-            cursor:pointer;
+        .big {
+            font-size:24px;
+            padding:15px;
+            background:#111827;
+            margin-bottom:10px;
         }
-
-        .buybtn { background:#00ff88; }
-        .sellbtn { background:#ff4d4d; }
     </style>
 </head>
 
 <body>
 
-<div class="header">🏦 TRADING DESK OPERATIONAL</div>
+<div class="header">🏦 HEDGE FUND QUANT DESK</div>
 
-<div class="container">
+<div class="big">
+🔥 ACTION: {{ action }} | 💰 CASH: {{ cash }}
+</div>
+
+<div class="grid">
 
     <!-- SIGNALS -->
     <div class="panel">
 
-        <h3>📊 SIGNALS</h3>
+        <h3>📊 OPPORTUNITIES</h3>
 
         {% for s in signals %}
         <div class="card">
@@ -66,6 +68,7 @@
             <b>{{ s.asset }}</b><br>
             Price: {{ s.price }}<br>
             RSI: {{ s.rsi }}<br>
+            Score: {{ s.score }}<br>
 
             {% if s.signal == "BUY" %}
                 <span class="buy">🟢 BUY</span>
@@ -76,15 +79,15 @@
             {% endif %}
 
             <form method="POST" action="/add">
-                <input type="hidden" name="asset" value="{{ s.asset }}">
-                <input type="number" name="qty" step="0.1" placeholder="qty">
-                <button class="buybtn">ADD</button>
+                <input name="asset" value="{{ s.asset }}" type="hidden">
+                <input name="qty" type="number" step="0.1">
+                <button>BUY</button>
             </form>
 
             <form method="POST" action="/remove">
-                <input type="hidden" name="asset" value="{{ s.asset }}">
-                <input type="number" name="qty" step="0.1" placeholder="qty">
-                <button class="sellbtn">REMOVE</button>
+                <input name="asset" value="{{ s.asset }}" type="hidden">
+                <input name="qty" type="number" step="0.1">
+                <button>SELL</button>
             </form>
 
         </div>
@@ -97,17 +100,20 @@
 
         <h3>💼 PORTFOLIO</h3>
 
-        <div class="card">
+        {% for k, v in portfolio.items() %}
+            <div class="card">📦 {{ k }} → {{ v }}</div>
+        {% endfor %}
 
-        {% if portfolio %}
-            {% for k, v in portfolio.items() %}
-                📦 {{ k }} → {{ v }}<br>
-            {% endfor %}
-        {% else %}
-            ⚠️ Portfolio vuoto
-        {% endif %}
+    </div>
 
-        </div>
+    <!-- RISK -->
+    <div class="panel">
+
+        <h3>⚠️ RISK</h3>
+
+        {% for k, v in risk.items() %}
+            <div class="card">{{ k }} → {{ (v*100)|round(2) }}%</div>
+        {% endfor %}
 
     </div>
 
