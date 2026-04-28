@@ -1,36 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard Trading</title>
+    <title>Hedge Fund Desk v2</title>
 </head>
 <body>
 
-<h1>🏦 Trading Desk</h1>
+<h1>🏦 Hedge Fund Trading Desk v2</h1>
 
-<p>💰 Capitale: {{ capitale }}</p>
+<p>💰 Capital: {{ capital }}</p>
 
 <hr>
 
-<h2>📊 Asset</h2>
+<h2>📊 Assets</h2>
 
 {% for d in data %}
 <div style="border:1px solid #ccc; padding:10px; margin:10px;">
 
     <p><b>{{ d.asset }}</b></p>
-    <p>Prezzo: {{ d.prezzo }}</p>
-    <p>Segnale: <b>{{ d.segnale }}</b></p>
+    <p>Price: {{ d.price }}</p>
+    <p>Signal: <b>{{ d.signal }}</b></p>
+    <p>Score: {{ d.score }}</p>
 
-    <!-- 🟢 BUY -->
     <form method="POST" action="/buy">
-        <button type="submit">🟢 BUY</button>
+        <input type="hidden" name="asset" value="{{ d.asset }}">
+        <button>🟢 BUY</button>
     </form>
 
-    <!-- 🔴 SELL -->
     <form method="POST" action="/sell">
-        <button type="submit">🔴 SELL</button>
+        <input type="hidden" name="asset" value="{{ d.asset }}">
+        <button>🔴 SELL</button>
     </form>
 
 </div>
+{% endfor %}
+
+<hr>
+
+<h2>📈 Equity Curve</h2>
+
+{% for e in equity %}
+<p>{{ e }}</p>
+{% endfor %}
+
+<hr>
+
+<h2>🧾 Last Trades</h2>
+
+{% for t in trades %}
+<p>{{ t.time }} - {{ t.type }} {{ t.asset }} → {{ t.pnl }}</p>
 {% endfor %}
 
 </body>
