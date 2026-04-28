@@ -1,26 +1,42 @@
 from flask import Flask, render_template, request, redirect, session
 import random
-from datetime import datetime
 import math
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "quant_v3"
+app.secret_key = "quant_institutional_v4"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 capital = 10000
 trades = []
-equity = []
+equity = [capital]
+returns = []
 
 
-# 📊 metriche
-def sharpe():
-    if len(equity) < 2:
+# 📊 metriche istituzionali
+def volatility():
+    if len(returns) < 2:
         return 0
-    returns = [equity[i] - equity[i-1] for i in range(1, len(equity))]
     mean = sum(returns) / len(returns)
-    std = math.sqrt(sum((x - mean) ** 2 for x in returns) / len(returns))
+    var = sum((r - mean) ** 2 for r in returns) / len(returns)
+    return round(math.sqrt(var), 4)
+
+
+def var_95():
+    if not returns:
+        return 0
+    sorted_r = sorted(returns)
+    index = int(0.05 * len(sorted_r))
+    return round(sorted_r[index], 4)
+
+
+def sharpe():
+    if len(returns) < 2:
+        return 0
+    mean = sum(returns) / len(returns)
+    std = math.sqrt(sum((r - mean) ** 2 for r in returns) / len(returns))
     return round(mean / std, 2) if std != 0 else 0
 
 
@@ -34,7 +50,7 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD QUANT
+# 📊 DASHBOARD ISTITUZIONALE
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
@@ -47,13 +63,14 @@ def dashboard():
     for a in assets:
         price = round(random.uniform(50, 600), 2)
 
-        # 🧠 signal model (z-score fake quant)
-        z = random.gauss(0, 1)
+        # 📉 log-return simulato
+        r = random.gauss(0, 0.01)
+        signal_score = r * 100
 
-        if z > 0.8:
+        if signal_score > 1:
             signal = "LONG"
             exposure = 0.02
-        elif z < -0.8:
+        elif signal_score < -1:
             signal = "SHORT"
             exposure = -0.02
         else:
@@ -63,7 +80,7 @@ def dashboard():
         data.append({
             "asset": a,
             "price": price,
-            "z": round(z, 2),
+            "return": round(r, 5),
             "signal": signal,
             "exposure": exposure
         })
@@ -72,21 +89,26 @@ def dashboard():
         "dashboard.html",
         data=data,
         capital=capital,
-        trades=trades[-15:],
         equity=equity[-30:],
+        trades=trades[-15:],
+        vol=volatility(),
+        var=var_95(),
         sharpe=sharpe()
     )
 
 
-# 🟢 BUY (LONG)
+# 🟢 LONG
 @app.route("/buy", methods=["POST"])
 def buy():
     global capital
 
     asset = request.form.get("asset")
-    pnl = capital * 0.01
+
+    r = random.gauss(0.001, 0.01)
+    pnl = capital * r
 
     capital += pnl
+    returns.append(r)
     equity.append(capital)
 
     trades.append({
@@ -99,22 +121,25 @@ def buy():
     return redirect("/dashboard")
 
 
-# 🔴 SELL (SHORT)
+# 🔴 SHORT
 @app.route("/sell", methods=["POST"])
 def sell():
     global capital
 
     asset = request.form.get("asset")
-    pnl = capital * 0.01
 
-    capital -= pnl
+    r = random.gauss(-0.001, 0.01)
+    pnl = capital * r
+
+    capital += pnl
+    returns.append(r)
     equity.append(capital)
 
     trades.append({
         "time": datetime.now().strftime("%H:%M:%S"),
         "asset": asset,
         "type": "SHORT",
-        "pnl": round(-pnl, 2)
+        "pnl": round(pnl, 2)
     })
 
     return redirect("/dashboard")
