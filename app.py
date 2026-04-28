@@ -8,7 +8,7 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "quant_pro_key"
+app.secret_key = "hedge_fund_key"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
@@ -22,7 +22,7 @@ equity_curve = []
 
 
 # 📊 feature engineering avanzata
-def build_features(df):
+def features(df):
     df = df.copy()
 
     df["return"] = df["Close"].pct_change()
@@ -40,16 +40,16 @@ def build_features(df):
     return X, y
 
 
-# 🤖 modello quant
-def train_model(df):
-    X, y = build_features(df)
+# 🤖 modello ML
+def train(df):
+    X, y = features(df)
 
-    if len(X) < 60:
+    if len(X) < 80:
         return None
 
     model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=6,
+        n_estimators=150,
+        max_depth=7,
         random_state=42
     )
 
@@ -62,26 +62,26 @@ def train_model(df):
 def analyze(asset):
     df = yf.download(asset, period="1y")
 
-    if df.empty or len(df) < 80:
+    if df.empty or len(df) < 100:
         return None
 
-    model = train_model(df)
+    model = train(df)
 
     if model is None:
         return None
 
     last = df.iloc[-1]
 
-    features = pd.DataFrame([{
+    row = pd.DataFrame([{
         "return": df["Close"].pct_change().iloc[-1],
         "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
         "ma10": df["Close"].rolling(10).mean().iloc[-1],
         "ma30": df["Close"].rolling(30).mean().iloc[-1]
     }])
 
-    prob = model.predict_proba(features)[0][1]
+    prob = model.predict_proba(row)[0][1]
 
-    price = round(last["Close"], 2)
+    price = float(last["Close"])
 
     if prob > 0.65:
         signal = "BUY"
@@ -92,37 +92,50 @@ def analyze(asset):
 
     return {
         "asset": asset,
-        "price": price,
+        "price": round(price, 2),
         "prob": round(prob, 2),
         "signal": signal
     }
 
 
-# 💰 portfolio allocation intelligente
+# ⚖️ portfolio allocation (semi-Markowitz semplificato)
 def allocate(signal):
     global capital
 
+    weight = 0.01  # rischio controllato
+
     if signal == "BUY":
-        capital *= 1.015
+        capital += capital * weight
     elif signal == "SELL":
-        capital *= 0.985
+        capital -= capital * weight
 
     equity_curve.append(capital)
 
 
-# 📉 Sharpe ratio simulato
+# ⚠️ Value at Risk (VaR semplificato)
+def var():
+    if len(equity_curve) < 20:
+        return 0
+
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+
+    return np.percentile(returns, 5) * capital
+
+
+# 📉 Sharpe ratio
 def sharpe():
     if len(equity_curve) < 2:
         return 0
 
     returns = np.diff(equity_curve) / equity_curve[:-1]
+
     if np.std(returns) == 0:
         return 0
 
     return np.mean(returns) / np.std(returns)
 
 
-# 🔁 loop quant
+# 🔁 loop hedge fund
 def loop():
     global cache, history
 
@@ -159,7 +172,7 @@ def login():
     return render_template("login.html")
 
 
-# 📊 dashboard quant pro
+# 📊 dashboard hedge fund
 @app.route("/dashboard")
 def dashboard():
     if not session.get("logged"):
@@ -170,7 +183,8 @@ def dashboard():
         data=cache,
         capital=round(capital, 2),
         history=history[-30:],
-        sharpe=round(sharpe(), 3)
+        sharpe=round(sharpe(), 3),
+        var=round(var(), 3)
     )
 
 
