@@ -66,7 +66,6 @@ def analyze(asset):
         df = yf.download(asset, period="1y")
 
         if df is None or df.empty or len(df) < 100:
-            return None
 
         model = train_model(df)
         if model is None:
