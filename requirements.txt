@@ -1,7 +1,4 @@
-flask
 yfinance
 pandas
-numpy
-scikit-learn
-gunicorn
-yfinance
+plotly
+ta
