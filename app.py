@@ -8,20 +8,24 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "live_quant_system"
+app.secret_key = "trading_desk_pro"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-capitale = 10000
+# 💰 capitale
+capitale_iniziale = 10000
+capitale = capitale_iniziale
+
 storico = []
 cache = []
 equity_curve = []
+pnl_giornaliero = []
 
 
-# 📊 feature real-time
+# 📊 feature engine
 def features(df):
     df = df.copy()
 
@@ -40,16 +44,16 @@ def features(df):
     return X, y
 
 
-# 🤖 modello live
+# 🤖 modello trading desk
 def train(df):
     X, y = features(df)
 
-    if len(X) < 100:
+    if len(X) < 120:
         return None
 
     model = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=8,
+        n_estimators=250,
+        max_depth=10,
         random_state=42
     )
 
@@ -58,11 +62,11 @@ def train(df):
     return model
 
 
-# 📈 analisi live asset
+# 📈 analisi asset
 def analyze(asset):
-    df = yf.download(asset, period="1y", interval="1d")
+    df = yf.download(asset, period="1y")
 
-    if df.empty or len(df) < 120:
+    if df.empty or len(df) < 150:
         return None
 
     model = train(df)
@@ -76,50 +80,44 @@ def analyze(asset):
         "return": df["Close"].pct_change().iloc[-1],
         "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
         "ma10": df["Close"].rolling(10).mean().iloc[-1],
-        "ma30": df["Close"].rolling(10).mean().iloc[-1]
+        "ma30": df["Close"].rolling(30).mean().iloc[-1]
     }])
 
     prob = model.predict_proba(row)[0][1]
 
     price = float(last["Close"])
 
-    if prob > 0.70:
-        signal = "ACQUISTA"
+    if prob > 0.72:
+        signal = "BUY"
         weight = 0.03
-    elif prob < 0.30:
-        signal = "VENDI"
+    elif prob < 0.28:
+        signal = "SELL"
         weight = -0.03
     else:
-        signal = "NEUTRO"
+        signal = "HOLD"
         weight = 0
 
     return {
         "asset": asset,
-        "prezzo": round(price, 2),
-        "probabilita": round(prob, 2),
-        "segnale": signal,
-        "peso": weight
+        "price": round(price, 2),
+        "prob": round(prob, 2),
+        "signal": signal,
+        "weight": weight
     }
 
 
-# 💰 motore capitale live
+# 💼 motore portafoglio desk
 def execute(weight):
     global capitale
 
-    capitale += capitale * weight
+    pnl = capitale * weight
+    capitale += pnl
+
     equity_curve.append(capitale)
+    pnl_giornaliero.append(pnl)
 
 
-# 📊 rischio live
-def risk():
-    if len(equity_curve) < 20:
-        return 0
-
-    returns = np.diff(equity_curve) / equity_curve[:-1]
-    return np.std(returns)
-
-
-# ⚠️ VaR live
+# ⚠️ VAR (rischio istituzionale)
 def var():
     if len(equity_curve) < 20:
         return 0
@@ -128,7 +126,16 @@ def var():
     return np.percentile(returns, 5) * capitale
 
 
-# 📈 Sharpe live
+# 📊 volatilità desk
+def volatility():
+    if len(equity_curve) < 2:
+        return 0
+
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+    return np.std(returns)
+
+
+# 📈 Sharpe ratio
 def sharpe():
     if len(equity_curve) < 2:
         return 0
@@ -141,7 +148,14 @@ def sharpe():
     return np.mean(returns) / np.std(returns)
 
 
-# 🔁 LIVE LOOP (aggiornamento continuo)
+# 📉 PnL giornaliero medio
+def pnl_media():
+    if not pnl_giornaliero:
+        return 0
+    return np.mean(pnl_giornaliero)
+
+
+# 🔁 LOOP TRADING DESK
 def loop():
     global cache, storico
 
@@ -152,20 +166,18 @@ def loop():
             data = analyze(a)
 
             if data:
-                execute(data["peso"])
+                execute(data["weight"])
 
                 storico.append({
                     "asset": data["asset"],
-                    "segnale": data["segnale"],
-                    "prezzo": data["prezzo"],
-                    "capitale": round(capitale, 2)
+                    "signal": data["signal"],
+                    "price": data["price"],
+                    "capital": round(capitale, 2)
                 })
 
                 results.append(data)
 
         cache = results
-
-        # 🔥 aggiornamento più rapido = “live feeling”
         time.sleep(60)
 
 
@@ -174,26 +186,27 @@ def loop():
 def login():
     if request.method == "POST":
         if request.form["user"] == USERNAME and request.form["pwd"] == PASSWORD:
-            session["loggato"] = True
+            session["ok"] = True
             return redirect("/dashboard")
 
     return render_template("login.html")
 
 
-# 📡 dashboard live
+# 🏦 DASHBOARD TRADING DESK
 @app.route("/dashboard")
 def dashboard():
-    if not session.get("loggato"):
+    if not session.get("ok"):
         return redirect("/")
 
     return render_template(
         "dashboard.html",
         data=cache,
         capitale=round(capitale, 2),
-        storico=storico[-50:],
-        sharpe=round(sharpe(), 3),
+        storico=storico[-60:],
         var=round(var(), 3),
-        rischio=round(risk(), 4)
+        sharpe=round(sharpe(), 3),
+        volatility=round(volatility(), 4),
+        pnl=round(pnl_media(), 2)
     )
 
 
