@@ -37,7 +37,6 @@ def login():
             return redirect("/dashboard")
     return render_template("login.html")
 
-
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
@@ -46,45 +45,41 @@ def dashboard():
     signals = []
 
     for a in assets:
-        df = yf.download(a, period="3mo", interval="1d")
-        df = indicators(df)
-        last = df.iloc[-1]
+        try:
+            df = yf.download(a, period="3mo", interval="1d")
 
-        signals.append({
-            "asset": a,
-            "price": round(last["Close"], 2),
-            "rsi": round(last["rsi"], 2),
-            "signal": get_signal(last)
-        })
+            # 🧨 sicurezza: dataset vuoto
+            if df is None or df.empty:
+                continue
+
+            df = indicators(df)
+
+            last = df.iloc[-1]
+
+            close = float(last["Close"]) if last["Close"] == last["Close"] else 0
+            rsi = float(last["rsi"]) if last["rsi"] == last["rsi"] else 50
+
+            signals.append({
+                "asset": a,
+                "price": round(close, 2),
+                "rsi": round(rsi, 2),
+                "signal": get_signal(last)
+            })
+
+        except Exception as e:
+            print(f"ERROR {a}: {e}")
+
+    # fallback se tutto vuoto
+    if len(signals) == 0:
+        signals = [{
+            "asset": "NO DATA",
+            "price": 0,
+            "rsi": 0,
+            "signal": "HOLD"
+        }]
 
     return render_template(
         "dashboard.html",
         signals=signals,
         portfolio=portfolio
     )
-
-
-@app.route("/add", methods=["POST"])
-def add():
-    asset = request.form.get("asset")
-    qty = float(request.form.get("qty"))
-
-    portfolio[asset] = portfolio.get(asset, 0) + qty
-    return redirect("/dashboard")
-
-
-@app.route("/remove", methods=["POST"])
-def remove():
-    asset = request.form.get("asset")
-    qty = float(request.form.get("qty"))
-
-    if asset in portfolio:
-        portfolio[asset] -= qty
-        if portfolio[asset] <= 0:
-            del portfolio[asset]
-
-    return redirect("/dashboard")
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
