@@ -1,44 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Unified Trading Desk</title>
+    <title>Trading Desk UI</title>
 </head>
-<body style="font-family:Arial">
 
-<h1>🏦 UNIFIED QUANT TRADING DESK</h1>
+<body style="font-family:Arial; background:#0f0f0f; color:white">
 
-<hr>
-
-<h2>🔥 WHAT TO DO NOW</h2>
-
-{% for a in actions %}
-<h3>{{ a }}</h3>
-{% endfor %}
+<h1>🏦 TRADING DESK</h1>
 
 <hr>
 
-<h2>📊 TOP OPPORTUNITIES (RANKED)</h2>
+<h2>🔥 SIGNALS</h2>
 
-{% for r in ranked %}
-<div style="border:1px solid #ccc; padding:10px; margin:10px">
+{% for s in signals %}
 
-<b>{{ r.asset }}</b><br>
-Price: {{ r.price }}<br>
-RSI: {{ r.rsi }}<br>
-Signal: <b>{{ r.signal }}</b><br>
-Score: {{ r.score }}<br>
+<div style="padding:10px; margin:10px; border:1px solid #333">
 
-<form method="POST" action="/buy">
-    <input type="hidden" name="asset" value="{{ r.asset }}">
-    <button>BUY</button>
+<b>{{ s.asset }}</b> - {{ s.price }}<br>
+RSI: {{ s.rsi }}<br>
+
+{% if s.signal == "BUY" %}
+    <span style="color:#00ff00; font-weight:bold">🟢 BUY</span>
+{% elif s.signal == "SELL" %}
+    <span style="color:#ff0000; font-weight:bold">🔴 SELL</span>
+{% else %}
+    <span style="color:#aaaaaa">⚪ HOLD</span>
+{% endif %}
+
+<br><br>
+
+<form method="POST" action="/add">
+    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <input type="number" name="qty" placeholder="qty" step="0.1">
+    <button style="background:#00ff00">ADD</button>
 </form>
 
-<form method="POST" action="/sell">
-    <input type="hidden" name="asset" value="{{ r.asset }}">
-    <button>SELL</button>
+<form method="POST" action="/remove">
+    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <input type="number" name="qty" placeholder="qty" step="0.1">
+    <button style="background:#ff4444">REMOVE</button>
 </form>
 
 </div>
+
 {% endfor %}
 
 <hr>
@@ -46,7 +50,7 @@ Score: {{ r.score }}<br>
 <h2>💼 PORTFOLIO</h2>
 
 {% for k, v in portfolio.items() %}
-<p>{{ k }} → {{ v }} units</p>
+<p>📦 {{ k }} → {{ v }} units</p>
 {% endfor %}
 
 </body>
