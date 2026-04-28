@@ -8,145 +8,155 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "chiave_sistema_quant_italia"
+app.secret_key = "istituzionale_key"
 
-# 🔐 login
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-# 📊 asset monitorati
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-# 💰 capitale simulato
+# 💰 capitale iniziale
 capitale = 10000
 storico = []
 cache = []
-curva_capitale = []
+equity_curve = []
 
 
-# 📊 creazione dataset
-def crea_dataset(df):
+# 📊 feature engineering istituzionale
+def build_features(df):
     df = df.copy()
 
-    df["rendimento"] = df["Close"].pct_change()
-    df["volatilita"] = df["rendimento"].rolling(10).std()
-    df["media_10"] = df["Close"].rolling(10).mean()
-    df["media_30"] = df["Close"].rolling(30).mean()
+    df["return"] = df["Close"].pct_change()
+    df["volatility"] = df["return"].rolling(10).std()
+    df["ma10"] = df["Close"].rolling(10).mean()
+    df["ma30"] = df["Close"].rolling(30).mean()
 
     df = df.dropna()
 
     df["target"] = np.where(df["Close"].shift(-1) > df["Close"], 1, 0)
 
-    X = df[["rendimento", "volatilita", "media_10", "media_30"]]
+    X = df[["return", "volatility", "ma10", "ma30"]]
     y = df["target"]
 
     return X, y
 
 
-# 🤖 modello AI
-def addestra_modello(df):
-    X, y = crea_dataset(df)
+# 🤖 modello istituzionale
+def train_model(df):
+    X, y = build_features(df)
 
-    if len(X) < 80:
+    if len(X) < 100:
         return None
 
-    modello = RandomForestClassifier(
-        n_estimators=150,
-        max_depth=7,
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=8,
         random_state=42
     )
 
-    modello.fit(X, y)
+    model.fit(X, y)
 
-    return modello
+    return model
 
 
 # 📈 analisi asset
-def analizza(asset):
+def analyze(asset):
     df = yf.download(asset, period="1y")
 
-    if df.empty or len(df) < 100:
+    if df.empty or len(df) < 120:
         return None
 
-    modello = addestra_modello(df)
+    model = train_model(df)
 
-    if modello is None:
+    if model is None:
         return None
 
-    ultimo = df.iloc[-1]
+    last = df.iloc[-1]
 
-    input_dati = pd.DataFrame([{
-        "rendimento": df["Close"].pct_change().iloc[-1],
-        "volatilita": df["Close"].pct_change().rolling(10).std().iloc[-1],
-        "media_10": df["Close"].rolling(10).mean().iloc[-1],
-        "media_30": df["Close"].rolling(30).mean().iloc[-1]
+    features = pd.DataFrame([{
+        "return": df["Close"].pct_change().iloc[-1],
+        "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
+        "ma10": df["Close"].rolling(10).mean().iloc[-1],
+        "ma30": df["Close"].rolling(30).mean().iloc[-1]
     }])
 
-    probabilita = modello.predict_proba(input_dati)[0][1]
+    prob = model.predict_proba(features)[0][1]
 
-    prezzo = float(ultimo["Close"])
+    price = float(last["Close"])
 
-    if probabilita > 0.65:
-        segnale = "ACQUISTA"
-    elif probabilita < 0.35:
-        segnale = "VENDI"
+    if prob > 0.7:
+        signal = "ACQUISTA"
+        weight = 0.02
+    elif prob < 0.3:
+        signal = "VENDI"
+        weight = -0.02
     else:
-        segnale = "NEUTRO"
+        signal = "NEUTRO"
+        weight = 0
 
     return {
         "asset": asset,
-        "prezzo": round(prezzo, 2),
-        "probabilita": round(probabilita, 2),
-        "segnale": segnale
+        "prezzo": round(price, 2),
+        "probabilita": round(prob, 2),
+        "segnale": signal,
+        "peso": weight
     }
 
 
-# 💰 gestione capitale
-def gestisci_capitale(segnale):
+# 💼 gestione portafoglio istituzionale
+def portfolio_step(signal, weight):
     global capitale
 
-    peso = 0.01
+    capitale += capitale * weight
 
-    if segnale == "ACQUISTA":
-        capitale += capitale * peso
-    elif segnale == "VENDI":
-        capitale -= capitale * peso
-
-    curva_capitale.append(capitale)
+    equity_curve.append(capitale)
 
 
-# ⚠️ rischio (drawdown semplice)
-def drawdown():
-    if not curva_capitale:
+# ⚠️ VaR (Value at Risk istituzionale)
+def var():
+    if len(equity_curve) < 20:
         return 0
 
-    picco = max(curva_capitale)
-    return (picco - capitale) / picco * 100
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+    return np.percentile(returns, 5) * capitale
 
 
-# 🔁 loop sistema
+# 📊 Sharpe ratio reale
+def sharpe():
+    if len(equity_curve) < 2:
+        return 0
+
+    returns = np.diff(equity_curve) / equity_curve[:-1]
+
+    if np.std(returns) == 0:
+        return 0
+
+    return np.mean(returns) / np.std(returns)
+
+
+# 🔁 loop istituzionale
 def loop():
     global cache, storico
 
     while True:
-        risultati = []
+        results = []
 
         for a in ASSETS:
-            dati = analizza(a)
+            data = analyze(a)
 
-            if dati:
-                gestisci_capitale(dati["segnale"])
+            if data:
+                portfolio_step(data["segnale"], data["peso"])
 
                 storico.append({
-                    "asset": dati["asset"],
-                    "segnale": dati["segnale"],
-                    "prezzo": dati["prezzo"],
+                    "asset": data["asset"],
+                    "segnale": data["segnale"],
+                    "prezzo": data["prezzo"],
                     "capitale": round(capitale, 2)
                 })
 
-                risultati.append(dati)
+                results.append(data)
 
-        cache = risultati
+        cache = results
         time.sleep(300)
 
 
@@ -161,7 +171,7 @@ def login():
     return render_template("login.html")
 
 
-# 📊 dashboard italiana
+# 🏦 dashboard istituzionale
 @app.route("/dashboard")
 def dashboard():
     if not session.get("loggato"):
@@ -172,11 +182,11 @@ def dashboard():
         data=cache,
         capitale=round(capitale, 2),
         storico=storico[-30:],
-        drawdown=round(drawdown(), 2)
+        sharpe=round(sharpe(), 3),
+        var=round(var(), 3)
     )
 
 
-# 🚀 avvio sistema
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
