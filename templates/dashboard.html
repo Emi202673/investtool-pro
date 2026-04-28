@@ -1,110 +1,79 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Bloomberg Style Trading Desk</title>
+    <title>Trading Desk</title>
 
     <style>
         body {
             margin:0;
             font-family: Arial;
             background:#0b0f14;
-            color:#e6e6e6;
+            color:white;
         }
 
-        .topbar {
-            background:#111827;
+        .header {
             padding:15px;
+            background:#111827;
             font-size:20px;
             font-weight:bold;
-            border-bottom:2px solid #1f2937;
         }
 
         .container {
             display:flex;
-            height:100vh;
         }
 
-        .left, .center, .right {
+        .panel {
+            flex:1;
             padding:15px;
-            overflow:auto;
-        }
-
-        .left {
-            width:35%;
-            border-right:1px solid #1f2937;
-        }
-
-        .center {
-            width:35%;
-            border-right:1px solid #1f2937;
-        }
-
-        .right {
-            width:30%;
         }
 
         .card {
-            background:#111827;
+            background:#1f2937;
             padding:10px;
             margin:10px 0;
-            border-radius:6px;
-            border:1px solid #1f2937;
+            border-radius:8px;
         }
 
         .buy { color:#00ff88; font-weight:bold; }
         .sell { color:#ff4d4d; font-weight:bold; }
-        .hold { color:#aaaaaa; }
+        .hold { color:#aaa; }
 
         button {
+            padding:6px;
             margin-top:5px;
-            padding:5px 10px;
-            border:none;
             cursor:pointer;
         }
 
         .buybtn { background:#00ff88; }
         .sellbtn { background:#ff4d4d; }
-
-        input {
-            width:60px;
-        }
-
-        .title {
-            font-size:14px;
-            color:#9ca3af;
-            margin-bottom:5px;
-        }
     </style>
 </head>
 
 <body>
 
-<div class="topbar">
-🏦 BLOOMBERG-STYLE QUANT TRADING DESK
-</div>
+<div class="header">🏦 TRADING DESK OPERATIONAL</div>
 
 <div class="container">
 
-    <!-- LEFT: SIGNALS -->
-    <div class="left">
+    <!-- SIGNALS -->
+    <div class="panel">
 
-        <div class="title">📊 MARKET SIGNALS</div>
+        <h3>📊 SIGNALS</h3>
 
         {% for s in signals %}
         <div class="card">
 
-            <b>{{ s.asset }}</b> — {{ s.price }}<br>
-            RSI: {{ s.rsi }}<br><br>
+            <b>{{ s.asset }}</b><br>
+            Price: {{ s.price }}<br>
+            RSI: {{ s.rsi }}<br>
 
             {% if s.signal == "BUY" %}
-                <span class="buy">🟢 BUY SIGNAL</span>
+                <span class="buy">🟢 BUY</span>
             {% elif s.signal == "SELL" %}
-                <span class="sell">🔴 SELL SIGNAL</span>
+                <span class="sell">🔴 SELL</span>
             {% else %}
                 <span class="hold">⚪ HOLD</span>
             {% endif %}
-
-            <br><br>
 
             <form method="POST" action="/add">
                 <input type="hidden" name="asset" value="{{ s.asset }}">
@@ -123,36 +92,21 @@
 
     </div>
 
-    <!-- CENTER: ACTION PANEL -->
-    <div class="center">
+    <!-- PORTFOLIO -->
+    <div class="panel">
 
-        <div class="title">🔥 ACTION PANEL</div>
-
-        {% for s in signals %}
-            {% if s.signal != "HOLD" %}
-                <div class="card">
-
-                    {% if s.signal == "BUY" %}
-                        🟢 ACTION: BUY {{ s.asset }}
-                    {% else %}
-                        🔴 ACTION: SELL {{ s.asset }}
-                    {% endif %}
-
-                </div>
-            {% endif %}
-        {% endfor %}
-
-    </div>
-
-    <!-- RIGHT: PORTFOLIO -->
-    <div class="right">
-
-        <div class="title">💼 PORTFOLIO</div>
+        <h3>💼 PORTFOLIO</h3>
 
         <div class="card">
-        {% for k, v in portfolio.items() %}
-            📦 {{ k }} → {{ v }}<br>
-        {% endfor %}
+
+        {% if portfolio %}
+            {% for k, v in portfolio.items() %}
+                📦 {{ k }} → {{ v }}<br>
+            {% endfor %}
+        {% else %}
+            ⚠️ Portfolio vuoto
+        {% endif %}
+
         </div>
 
     </div>
