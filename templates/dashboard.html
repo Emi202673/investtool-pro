@@ -1,26 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Portfolio Optimization Desk</title>
+    <title>Efficient Frontier</title>
 </head>
 <body style="font-family:Arial">
 
-<h1>🏦 PORTFOLIO OPTIMIZATION DESK</h1>
-
-<p>💰 Capital: {{ capital }}</p>
+<h1>📈 EFFICIENT FRONTIER (MARKOWITZ)</h1>
 
 <hr>
 
-<h2>📊 Optimal Allocation (Mean-Variance Proxy)</h2>
+<h2>🏆 Best Portfolio</h2>
 
-{% for p in portfolio %}
-<div style="border:1px solid #ddd; padding:10px; margin:10px">
+<p>Return: {{ best.return }}</p>
+<p>Risk: {{ best.risk }}</p>
+<p>Sharpe: {{ best.sharpe }}</p>
 
-<b>{{ p.asset }}</b><br>
+<hr>
 
-📈 Mean Return: {{ p.mean }}<br>
-📉 Volatility: {{ p.vol }}<br>
-⚖️ Weight: <b>{{ p.weight }}</b><br>
+<h2>📊 All Portfolios</h2>
+
+{% for p in portfolios %}
+<div style="border:1px solid #ccc; padding:8px; margin:5px">
+
+Return: {{ p.return }} |
+Risk: {{ p.risk }} |
+Sharpe: {{ p.sharpe }}
 
 </div>
 {% endfor %}
