@@ -5,66 +5,91 @@ import threading
 import time
 
 app = Flask(__name__)
-app.secret_key = "chiave_segreta"
+app.secret_key = "chiave_segreta_super_sicura"
 
+# 🔐 login base
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-ASSETS = ["AAPL","MSFT","TSLA","AMZN","BTC-USD","ETH-USD"]
+# 📊 asset monitorati
+ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
+# 💰 simulazione capitale hedge fund
+capital = 10000
+history = []
 cache = []
 
-def analyze():
-    global cache
-    results = []
 
-    for a in ASSETS:
-        df = yf.download(a, period="6mo")
+# 🧠 funzione di analisi e decisione
+def analyze_asset(asset):
+    df = yf.download(asset, period="6mo")
 
-        if df.empty:
-            continue
+    if df.empty:
+        return None
 
-        df["RSI"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
-        last = df.iloc[-1]
+    df["RSI"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
+    last = df.iloc[-1]
 
+    rsi = last["RSI"]
+    price = round(last["Close"], 2)
+
+    # 🎯 logica decisionale (semplice ma efficace)
+    if rsi < 30:
+        decision = "BUY"
+        score = 2
+    elif rsi > 70:
+        decision = "SELL"
+        score = -1
+    else:
+        decision = "HOLD"
         score = 0
 
-        if last["RSI"] < 30:
-            score += 2
-        elif last["RSI"] < 70:
-            score += 1
-        else:
-            score -= 1
-
-        ma50 = df["Close"].rolling(50).mean().iloc[-1]
-
-        if last["Close"] > ma50:
-            score += 1
-
-        if score >= 2:
-            decision = "BUY"
-        elif score <= 0:
-            decision = "SELL"
-        else:
-            decision = "HOLD"
-
-        results.append({
-            "asset": a,
-            "price": round(last["Close"],2),
-            "rsi": round(last["RSI"],2),
-            "decision": decision
-        })
-
-    cache = results
+    return {
+        "asset": asset,
+        "price": price,
+        "rsi": round(rsi, 2),
+        "decision": decision,
+        "score": score
+    }
 
 
+# 💰 simulazione hedge fund
+def simulate_trade(asset, decision, price):
+    global capital
+
+    if decision == "BUY":
+        capital *= 1.01
+    elif decision == "SELL":
+        capital *= 0.99
+
+    history.append({
+        "asset": asset,
+        "decision": decision,
+        "price": price,
+        "capital": round(capital, 2)
+    })
+
+
+# 🔁 loop continuo (aggiornamento ogni 5 min)
 def loop():
+    global cache
+
     while True:
-        analyze()
+        results = []
+
+        for a in ASSETS:
+            data = analyze_asset(a)
+
+            if data:
+                simulate_trade(data["asset"], data["decision"], data["price"])
+                results.append(data)
+
+        cache = results
         time.sleep(300)
 
 
-@app.route("/", methods=["GET","POST"])
+# 🌐 login
+@app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         if request.form["user"] == USERNAME and request.form["pwd"] == PASSWORD:
@@ -74,14 +99,21 @@ def login():
     return render_template("login.html")
 
 
+# 📊 dashboard
 @app.route("/dashboard")
 def dashboard():
     if not session.get("logged"):
         return redirect("/")
 
-    return render_template("dashboard.html", data=cache)
+    return render_template(
+        "dashboard.html",
+        data=cache,
+        capital=round(capital, 2),
+        history=history[-20:]  # ultimi 20 movimenti
+    )
 
 
+# 🚀 avvio sistema
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
