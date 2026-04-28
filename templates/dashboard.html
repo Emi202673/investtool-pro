@@ -1,57 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Trading Desk UI</title>
+    <title>Bloomberg Style Trading Desk</title>
+
+    <style>
+        body {
+            margin:0;
+            font-family: Arial;
+            background:#0b0f14;
+            color:#e6e6e6;
+        }
+
+        .topbar {
+            background:#111827;
+            padding:15px;
+            font-size:20px;
+            font-weight:bold;
+            border-bottom:2px solid #1f2937;
+        }
+
+        .container {
+            display:flex;
+            height:100vh;
+        }
+
+        .left, .center, .right {
+            padding:15px;
+            overflow:auto;
+        }
+
+        .left {
+            width:35%;
+            border-right:1px solid #1f2937;
+        }
+
+        .center {
+            width:35%;
+            border-right:1px solid #1f2937;
+        }
+
+        .right {
+            width:30%;
+        }
+
+        .card {
+            background:#111827;
+            padding:10px;
+            margin:10px 0;
+            border-radius:6px;
+            border:1px solid #1f2937;
+        }
+
+        .buy { color:#00ff88; font-weight:bold; }
+        .sell { color:#ff4d4d; font-weight:bold; }
+        .hold { color:#aaaaaa; }
+
+        button {
+            margin-top:5px;
+            padding:5px 10px;
+            border:none;
+            cursor:pointer;
+        }
+
+        .buybtn { background:#00ff88; }
+        .sellbtn { background:#ff4d4d; }
+
+        input {
+            width:60px;
+        }
+
+        .title {
+            font-size:14px;
+            color:#9ca3af;
+            margin-bottom:5px;
+        }
+    </style>
 </head>
 
-<body style="font-family:Arial; background:#0f0f0f; color:white">
+<body>
 
-<h1>🏦 TRADING DESK</h1>
-
-<hr>
-
-<h2>🔥 SIGNALS</h2>
-
-{% for s in signals %}
-
-<div style="padding:10px; margin:10px; border:1px solid #333">
-
-<b>{{ s.asset }}</b> - {{ s.price }}<br>
-RSI: {{ s.rsi }}<br>
-
-{% if s.signal == "BUY" %}
-    <span style="color:#00ff00; font-weight:bold">🟢 BUY</span>
-{% elif s.signal == "SELL" %}
-    <span style="color:#ff0000; font-weight:bold">🔴 SELL</span>
-{% else %}
-    <span style="color:#aaaaaa">⚪ HOLD</span>
-{% endif %}
-
-<br><br>
-
-<form method="POST" action="/add">
-    <input type="hidden" name="asset" value="{{ s.asset }}">
-    <input type="number" name="qty" placeholder="qty" step="0.1">
-    <button style="background:#00ff00">ADD</button>
-</form>
-
-<form method="POST" action="/remove">
-    <input type="hidden" name="asset" value="{{ s.asset }}">
-    <input type="number" name="qty" placeholder="qty" step="0.1">
-    <button style="background:#ff4444">REMOVE</button>
-</form>
-
+<div class="topbar">
+🏦 BLOOMBERG-STYLE QUANT TRADING DESK
 </div>
 
-{% endfor %}
+<div class="container">
 
-<hr>
+    <!-- LEFT: SIGNALS -->
+    <div class="left">
 
-<h2>💼 PORTFOLIO</h2>
+        <div class="title">📊 MARKET SIGNALS</div>
 
-{% for k, v in portfolio.items() %}
-<p>📦 {{ k }} → {{ v }} units</p>
-{% endfor %}
+        {% for s in signals %}
+        <div class="card">
+
+            <b>{{ s.asset }}</b> — {{ s.price }}<br>
+            RSI: {{ s.rsi }}<br><br>
+
+            {% if s.signal == "BUY" %}
+                <span class="buy">🟢 BUY SIGNAL</span>
+            {% elif s.signal == "SELL" %}
+                <span class="sell">🔴 SELL SIGNAL</span>
+            {% else %}
+                <span class="hold">⚪ HOLD</span>
+            {% endif %}
+
+            <br><br>
+
+            <form method="POST" action="/add">
+                <input type="hidden" name="asset" value="{{ s.asset }}">
+                <input type="number" name="qty" step="0.1" placeholder="qty">
+                <button class="buybtn">ADD</button>
+            </form>
+
+            <form method="POST" action="/remove">
+                <input type="hidden" name="asset" value="{{ s.asset }}">
+                <input type="number" name="qty" step="0.1" placeholder="qty">
+                <button class="sellbtn">REMOVE</button>
+            </form>
+
+        </div>
+        {% endfor %}
+
+    </div>
+
+    <!-- CENTER: ACTION PANEL -->
+    <div class="center">
+
+        <div class="title">🔥 ACTION PANEL</div>
+
+        {% for s in signals %}
+            {% if s.signal != "HOLD" %}
+                <div class="card">
+
+                    {% if s.signal == "BUY" %}
+                        🟢 ACTION: BUY {{ s.asset }}
+                    {% else %}
+                        🔴 ACTION: SELL {{ s.asset }}
+                    {% endif %}
+
+                </div>
+            {% endif %}
+        {% endfor %}
+
+    </div>
+
+    <!-- RIGHT: PORTFOLIO -->
+    <div class="right">
+
+        <div class="title">💼 PORTFOLIO</div>
+
+        <div class="card">
+        {% for k, v in portfolio.items() %}
+            📦 {{ k }} → {{ v }}<br>
+        {% endfor %}
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>
