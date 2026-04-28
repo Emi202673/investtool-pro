@@ -1,36 +1,40 @@
 from flask import Flask, render_template, request, redirect, session
 import yfinance as yf
-import pandas as pd
 import ta
 
 app = Flask(__name__)
-app.secret_key = "tech_desk"
+app.secret_key = "unified_desk_final"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
 portfolio = {}
 
-assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC-USD"]
 
 
-# 🧠 indicatori tecnici
-def compute_indicators(df):
+# 🧠 indicatori
+def indicators(df):
     df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
     macd = ta.trend.MACD(df["Close"])
     df["macd"] = macd.macd()
-    df["macd_signal"] = macd.macd_signal()
+    df["signal"] = macd.macd_signal()
     return df
 
 
-# 📊 segnale
-def signal(rsi, macd, macd_signal):
-    if rsi < 30 and macd > macd_signal:
+# 🧠 segnale base
+def signal(row):
+    if row["rsi"] < 30 and row["macd"] > row["signal"]:
         return "BUY"
-    elif rsi > 70 and macd < macd_signal:
+    elif row["rsi"] > 70 and row["macd"] < row["signal"]:
         return "SELL"
     else:
         return "HOLD"
+
+
+# 🧠 score opportunità
+def score(row):
+    return (50 - row["rsi"]) + (row["macd"] - row["signal"]) * 10
 
 
 # 🌐 LOGIN
@@ -43,38 +47,50 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD TECNICO
+# 📊 DASHBOARD UNIFICATA
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
     signals = []
+    actions = []
 
     for a in assets:
 
         df = yf.download(a, period="3mo", interval="1d")
-        df = compute_indicators(df)
+        df = indicators(df)
 
-        latest = df.iloc[-1]
+        last = df.iloc[-1]
 
-        sig = signal(
-            latest["rsi"],
-            latest["macd"],
-            latest["macd_signal"]
-        )
+        sig = signal(last)
+        sc = score(last)
 
         signals.append({
             "asset": a,
-            "price": round(latest["Close"], 2),
-            "rsi": round(latest["rsi"], 2),
-            "macd": round(latest["macd"], 2),
-            "signal": sig
+            "price": round(last["Close"], 2),
+            "rsi": round(last["rsi"], 2),
+            "signal": sig,
+            "score": round(sc, 2)
         })
+
+    # 🔥 ranking opportunità
+    ranked = sorted(signals, key=lambda x: x["score"], reverse=True)
+
+    # 🧠 decision engine finale
+    top = ranked[0]
+
+    if top["signal"] == "BUY":
+        actions.append(f"🟢 BUY {top['asset']} (top opportunity)")
+    elif top["signal"] == "SELL":
+        actions.append(f"🔴 SELL {top['asset']} (risk/reversal)")
+    else:
+        actions.append(f"⚪ HOLD - no strong setup")
 
     return render_template(
         "dashboard.html",
-        signals=signals,
+        ranked=ranked,
+        actions=actions,
         portfolio=portfolio
     )
 
