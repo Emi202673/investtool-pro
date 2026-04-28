@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Real Market Trading Desk</title>
+    <title>Technical Trading Desk</title>
 </head>
 <body style="font-family:Arial">
 
-<h1>📈 REAL MARKET TRADING DESK</h1>
+<h1>📊 TECHNICAL TRADING DESK</h1>
 
 <hr>
 
-<h2>🧠 LIVE SIGNALS (REAL DATA)</h2>
+<h2>🧠 SIGNALS (RSI + MACD)</h2>
 
 {% for s in signals %}
 <div style="border:1px solid #ccc; padding:10px; margin:10px">
 
 <b>{{ s.asset }}</b><br>
 Price: {{ s.price }}<br>
-Change: {{ s.change }}%<br>
+RSI: {{ s.rsi }}<br>
+MACD: {{ s.macd }}<br>
 Signal: <b>{{ s.signal }}</b><br>
 
 <form method="POST" action="/buy">
