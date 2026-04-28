@@ -8,156 +8,145 @@ import time
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
-app.secret_key = "hedge_fund_key"
+app.secret_key = "chiave_sistema_quant_italia"
 
+# 🔐 login
 USERNAME = "admin"
 PASSWORD = "admin123"
 
+# 📊 asset monitorati
 ASSETS = ["AAPL", "MSFT", "TSLA", "AMZN", "BTC-USD", "ETH-USD"]
 
-capital = 10000
-history = []
+# 💰 capitale simulato
+capitale = 10000
+storico = []
 cache = []
-equity_curve = []
+curva_capitale = []
 
 
-# 📊 feature engineering avanzata
-def features(df):
+# 📊 creazione dataset
+def crea_dataset(df):
     df = df.copy()
 
-    df["return"] = df["Close"].pct_change()
-    df["volatility"] = df["return"].rolling(10).std()
-    df["ma10"] = df["Close"].rolling(10).mean()
-    df["ma30"] = df["Close"].rolling(30).mean()
+    df["rendimento"] = df["Close"].pct_change()
+    df["volatilita"] = df["rendimento"].rolling(10).std()
+    df["media_10"] = df["Close"].rolling(10).mean()
+    df["media_30"] = df["Close"].rolling(30).mean()
 
     df = df.dropna()
 
     df["target"] = np.where(df["Close"].shift(-1) > df["Close"], 1, 0)
 
-    X = df[["return", "volatility", "ma10", "ma30"]]
+    X = df[["rendimento", "volatilita", "media_10", "media_30"]]
     y = df["target"]
 
     return X, y
 
 
-# 🤖 modello ML
-def train(df):
-    X, y = features(df)
+# 🤖 modello AI
+def addestra_modello(df):
+    X, y = crea_dataset(df)
 
     if len(X) < 80:
         return None
 
-    model = RandomForestClassifier(
+    modello = RandomForestClassifier(
         n_estimators=150,
         max_depth=7,
         random_state=42
     )
 
-    model.fit(X, y)
+    modello.fit(X, y)
 
-    return model
+    return modello
 
 
 # 📈 analisi asset
-def analyze(asset):
+def analizza(asset):
     df = yf.download(asset, period="1y")
 
     if df.empty or len(df) < 100:
         return None
 
-    model = train(df)
+    modello = addestra_modello(df)
 
-    if model is None:
+    if modello is None:
         return None
 
-    last = df.iloc[-1]
+    ultimo = df.iloc[-1]
 
-    row = pd.DataFrame([{
-        "return": df["Close"].pct_change().iloc[-1],
-        "volatility": df["Close"].pct_change().rolling(10).std().iloc[-1],
-        "ma10": df["Close"].rolling(10).mean().iloc[-1],
-        "ma30": df["Close"].rolling(30).mean().iloc[-1]
+    input_dati = pd.DataFrame([{
+        "rendimento": df["Close"].pct_change().iloc[-1],
+        "volatilita": df["Close"].pct_change().rolling(10).std().iloc[-1],
+        "media_10": df["Close"].rolling(10).mean().iloc[-1],
+        "media_30": df["Close"].rolling(30).mean().iloc[-1]
     }])
 
-    prob = model.predict_proba(row)[0][1]
+    probabilita = modello.predict_proba(input_dati)[0][1]
 
-    price = float(last["Close"])
+    prezzo = float(ultimo["Close"])
 
-    if prob > 0.65:
-        signal = "BUY"
-    elif prob < 0.35:
-        signal = "SELL"
+    if probabilita > 0.65:
+        segnale = "ACQUISTA"
+    elif probabilita < 0.35:
+        segnale = "VENDI"
     else:
-        signal = "HOLD"
+        segnale = "NEUTRO"
 
     return {
         "asset": asset,
-        "price": round(price, 2),
-        "prob": round(prob, 2),
-        "signal": signal
+        "prezzo": round(prezzo, 2),
+        "probabilita": round(probabilita, 2),
+        "segnale": segnale
     }
 
 
-# ⚖️ portfolio allocation (semi-Markowitz semplificato)
-def allocate(signal):
-    global capital
+# 💰 gestione capitale
+def gestisci_capitale(segnale):
+    global capitale
 
-    weight = 0.01  # rischio controllato
+    peso = 0.01
 
-    if signal == "BUY":
-        capital += capital * weight
-    elif signal == "SELL":
-        capital -= capital * weight
+    if segnale == "ACQUISTA":
+        capitale += capitale * peso
+    elif segnale == "VENDI":
+        capitale -= capitale * peso
 
-    equity_curve.append(capital)
+    curva_capitale.append(capitale)
 
 
-# ⚠️ Value at Risk (VaR semplificato)
-def var():
-    if len(equity_curve) < 20:
+# ⚠️ rischio (drawdown semplice)
+def drawdown():
+    if not curva_capitale:
         return 0
 
-    returns = np.diff(equity_curve) / equity_curve[:-1]
-
-    return np.percentile(returns, 5) * capital
-
-
-# 📉 Sharpe ratio
-def sharpe():
-    if len(equity_curve) < 2:
-        return 0
-
-    returns = np.diff(equity_curve) / equity_curve[:-1]
-
-    if np.std(returns) == 0:
-        return 0
-
-    return np.mean(returns) / np.std(returns)
+    picco = max(curva_capitale)
+    return (picco - capitale) / picco * 100
 
 
-# 🔁 loop hedge fund
+# 🔁 loop sistema
 def loop():
-    global cache, history
+    global cache, storico
 
     while True:
-        results = []
+        risultati = []
 
         for a in ASSETS:
-            data = analyze(a)
+            dati = analizza(a)
 
-            if data:
-                allocate(data["signal"])
+            if dati:
+                gestisci_capitale(dati["segnale"])
 
-                history.append({
-                    "asset": data["asset"],
-                    "signal": data["signal"],
-                    "price": data["price"],
-                    "capital": round(capital, 2)
+                storico.append({
+                    "asset": dati["asset"],
+                    "segnale": dati["segnale"],
+                    "prezzo": dati["prezzo"],
+                    "capitale": round(capitale, 2)
                 })
 
-                results.append(data)
+                risultati.append(dati)
 
-        cache = results
+        cache = risultati
         time.sleep(300)
 
 
@@ -166,28 +155,28 @@ def loop():
 def login():
     if request.method == "POST":
         if request.form["user"] == USERNAME and request.form["pwd"] == PASSWORD:
-            session["logged"] = True
+            session["loggato"] = True
             return redirect("/dashboard")
 
     return render_template("login.html")
 
 
-# 📊 dashboard hedge fund
+# 📊 dashboard italiana
 @app.route("/dashboard")
 def dashboard():
-    if not session.get("logged"):
+    if not session.get("loggato"):
         return redirect("/")
 
     return render_template(
         "dashboard.html",
         data=cache,
-        capital=round(capital, 2),
-        history=history[-30:],
-        sharpe=round(sharpe(), 3),
-        var=round(var(), 3)
+        capitale=round(capitale, 2),
+        storico=storico[-30:],
+        drawdown=round(drawdown(), 2)
     )
 
 
+# 🚀 avvio sistema
 if __name__ == "__main__":
     threading.Thread(target=loop).start()
     app.run(host="0.0.0.0", port=5000)
