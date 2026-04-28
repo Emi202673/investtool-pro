@@ -3,14 +3,15 @@ import yfinance as yf
 import ta
 
 app = Flask(__name__)
-app.secret_key = "unified_desk_final"
+app.secret_key = "ui_trading_desk"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
+# 💼 portafoglio con quantità
 portfolio = {}
 
-assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC-USD"]
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA"]
 
 
 # 🧠 indicatori
@@ -22,19 +23,14 @@ def indicators(df):
     return df
 
 
-# 🧠 segnale base
-def signal(row):
+# 🧠 segnale
+def get_signal(row):
     if row["rsi"] < 30 and row["macd"] > row["signal"]:
         return "BUY"
     elif row["rsi"] > 70 and row["macd"] < row["signal"]:
         return "SELL"
     else:
         return "HOLD"
-
-
-# 🧠 score opportunità
-def score(row):
-    return (50 - row["rsi"]) + (row["macd"] - row["signal"]) * 10
 
 
 # 🌐 LOGIN
@@ -47,70 +43,57 @@ def login():
     return render_template("login.html")
 
 
-# 📊 DASHBOARD UNIFICATA
+# 📊 DASHBOARD
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
     signals = []
-    actions = []
 
     for a in assets:
-
         df = yf.download(a, period="3mo", interval="1d")
         df = indicators(df)
 
         last = df.iloc[-1]
 
-        sig = signal(last)
-        sc = score(last)
+        sig = get_signal(last)
 
         signals.append({
             "asset": a,
             "price": round(last["Close"], 2),
             "rsi": round(last["rsi"], 2),
-            "signal": sig,
-            "score": round(sc, 2)
+            "signal": sig
         })
-
-    # 🔥 ranking opportunità
-    ranked = sorted(signals, key=lambda x: x["score"], reverse=True)
-
-    # 🧠 decision engine finale
-    top = ranked[0]
-
-    if top["signal"] == "BUY":
-        actions.append(f"🟢 BUY {top['asset']} (top opportunity)")
-    elif top["signal"] == "SELL":
-        actions.append(f"🔴 SELL {top['asset']} (risk/reversal)")
-    else:
-        actions.append(f"⚪ HOLD - no strong setup")
 
     return render_template(
         "dashboard.html",
-        ranked=ranked,
-        actions=actions,
+        signals=signals,
         portfolio=portfolio
     )
 
 
-# 🟢 BUY
-@app.route("/buy", methods=["POST"])
-def buy():
+# ➕ AGGIUNGI POSIZIONE (quantità)
+@app.route("/add", methods=["POST"])
+def add():
     asset = request.form.get("asset")
-    portfolio[asset] = portfolio.get(asset, 0) + 1
+    qty = float(request.form.get("qty"))
+
+    portfolio[asset] = portfolio.get(asset, 0) + qty
     return redirect("/dashboard")
 
 
-# 🔴 SELL
-@app.route("/sell", methods=["POST"])
-def sell():
+# ➖ RIMUOVI POSIZIONE
+@app.route("/remove", methods=["POST"])
+def remove():
     asset = request.form.get("asset")
+    qty = float(request.form.get("qty"))
+
     if asset in portfolio:
-        portfolio[asset] -= 1
+        portfolio[asset] -= qty
         if portfolio[asset] <= 0:
             del portfolio[asset]
+
     return redirect("/dashboard")
 
 
