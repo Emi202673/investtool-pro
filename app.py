@@ -45,10 +45,11 @@ def dashboard():
     signals = []
 
     for a in assets:
+
         try:
             df = yf.download(a, period="3mo", interval="1d")
 
-            # 🧨 sicurezza: dataset vuoto
+            # 🧠 STEP CRITICO: se vuoto salta
             if df is None or df.empty:
                 continue
 
@@ -67,8 +68,22 @@ def dashboard():
             })
 
         except Exception as e:
-            print(f"ERROR {a}: {e}")
+            print("ERROR on", a, e)
 
+    # fallback sicurezza
+    if len(signals) == 0:
+        signals.append({
+            "asset": "NO DATA",
+            "price": 0,
+            "rsi": 0,
+            "signal": "HOLD"
+        })
+
+    return render_template(
+        "dashboard.html",
+        signals=signals,
+        portfolio=portfolio
+    )
     # fallback se tutto vuoto
     if len(signals) == 0:
         signals = [{
