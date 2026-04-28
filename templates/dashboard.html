@@ -1,32 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Efficient Frontier</title>
+    <title>Real Market Trading Desk</title>
 </head>
 <body style="font-family:Arial">
 
-<h1>📈 EFFICIENT FRONTIER (MARKOWITZ)</h1>
+<h1>📈 REAL MARKET TRADING DESK</h1>
 
 <hr>
 
-<h2>🏆 Best Portfolio</h2>
+<h2>🧠 LIVE SIGNALS (REAL DATA)</h2>
 
-<p>Return: {{ best.return }}</p>
-<p>Risk: {{ best.risk }}</p>
-<p>Sharpe: {{ best.sharpe }}</p>
+{% for s in signals %}
+<div style="border:1px solid #ccc; padding:10px; margin:10px">
 
-<hr>
+<b>{{ s.asset }}</b><br>
+Price: {{ s.price }}<br>
+Change: {{ s.change }}%<br>
+Signal: <b>{{ s.signal }}</b><br>
 
-<h2>📊 All Portfolios</h2>
+<form method="POST" action="/buy">
+    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <button>BUY</button>
+</form>
 
-{% for p in portfolios %}
-<div style="border:1px solid #ccc; padding:8px; margin:5px">
-
-Return: {{ p.return }} |
-Risk: {{ p.risk }} |
-Sharpe: {{ p.sharpe }}
+<form method="POST" action="/sell">
+    <input type="hidden" name="asset" value="{{ s.asset }}">
+    <button>SELL</button>
+</form>
 
 </div>
+{% endfor %}
+
+<hr>
+
+<h2>💼 PORTFOLIO</h2>
+
+{% for k, v in portfolio.items() %}
+<p>{{ k }} → {{ v }} units</p>
 {% endfor %}
 
 </body>
