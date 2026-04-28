@@ -1,77 +1,29 @@
 from flask import Flask, render_template, request, redirect, session
 import random
-import math
 
 app = Flask(__name__)
-app.secret_key = "efficient_frontier_v1"
+app.secret_key = "signal_desk"
 
 USERNAME = "admin"
 PASSWORD = "admin123"
 
-assets = ["AAPL", "TSLA", "MSFT", "AMZN", "BTC"]
+# 💼 portafoglio utente
+portfolio = {}
 
-# 📊 rendimenti simulati
-returns = {
-    a: [random.gauss(0.001, 0.02) for _ in range(100)]
-    for a in assets
-}
+# 📊 universi titoli
+assets = ["AAPL", "TSLA", "MSFT", "AMZN", "NVDA", "BTC", "ETH"]
 
 
-# 📈 media
-def mean(x):
-    return sum(x) / len(x)
+# 🧠 generatore segnali (momentum + mean reversion semplificato)
+def generate_signal(price_change, volatility):
+    score = price_change / (volatility + 1e-6)
 
-
-# 📉 volatilità
-def vol(x):
-    m = mean(x)
-    return math.sqrt(sum((i - m) ** 2 for i in x) / len(x))
-
-
-# 📊 correlazione semplificata
-def corr(a, b):
-    ma = mean(a)
-    mb = mean(b)
-
-    num = sum((a[i] - ma) * (b[i] - mb) for i in range(len(a)))
-    den = math.sqrt(sum((a[i] - ma) ** 2 for i in range(len(a))) *
-                    sum((b[i] - mb) ** 2 for i in range(len(b))))
-
-    return num / den if den != 0 else 0
-
-
-# 🧠 portafoglio random pesato
-def random_portfolio():
-    weights = [random.random() for _ in assets]
-    s = sum(weights)
-    weights = [w / s for w in weights]
-
-    port_return = 0
-    port_risk = 0
-
-    # rendimento atteso
-    for i, a in enumerate(assets):
-        port_return += weights[i] * mean(returns[a])
-
-    # rischio semplificato (varianza + correlazione)
-    for i in range(len(assets)):
-        for j in range(len(assets)):
-            wi = weights[i]
-            wj = weights[j]
-            ri = returns[assets[i]]
-            rj = returns[assets[j]]
-
-            port_risk += wi * wj * corr(ri, rj) * vol(ri) * vol(rj)
-
-    port_risk = math.sqrt(abs(port_risk))
-
-    sharpe = port_return / port_risk if port_risk != 0 else 0
-
-    return {
-        "return": port_return,
-        "risk": port_risk,
-        "sharpe": sharpe
-    }
+    if score > 1:
+        return "BUY"
+    elif score < -1:
+        return "SELL"
+    else:
+        return "HOLD"
 
 
 # 🌐 LOGIN
@@ -84,25 +36,68 @@ def login():
     return render_template("login.html")
 
 
-# 📊 EFFICIENT FRONTIER
+# 📊 DASHBOARD OPERATIVA
 @app.route("/dashboard")
 def dashboard():
     if not session.get("ok"):
         return redirect("/")
 
-    portfolios = []
+    signals = []
+    recommendations = []
 
-    for _ in range(30):  # simuliamo molti portafogli
-        portfolios.append(random_portfolio())
+    for a in assets:
 
-    # 🏆 migliore Sharpe
-    best = max(portfolios, key=lambda x: x["sharpe"])
+        price = random.uniform(50, 600)
+
+        # simulazione variazione prezzo
+        price_change = random.gauss(0, 2)
+        volatility = random.uniform(0.5, 3)
+
+        signal = generate_signal(price_change, volatility)
+
+        signals.append({
+            "asset": a,
+            "price": round(price, 2),
+            "change": round(price_change, 2),
+            "vol": round(volatility, 2),
+            "signal": signal
+        })
+
+        # 🧠 logica operativa consigliata
+        if signal == "BUY":
+            recommendations.append(f"📈 BUY {a}")
+        elif signal == "SELL":
+            recommendations.append(f"📉 SELL {a}")
 
     return render_template(
         "dashboard.html",
-        portfolios=portfolios,
-        best=best
+        signals=signals,
+        portfolio=portfolio,
+        recommendations=recommendations
     )
+
+
+# 🟢 BUY
+@app.route("/buy", methods=["POST"])
+def buy():
+    asset = request.form.get("asset")
+
+    portfolio[asset] = portfolio.get(asset, 0) + 1
+
+    return redirect("/dashboard")
+
+
+# 🔴 SELL
+@app.route("/sell", methods=["POST"])
+def sell():
+    asset = request.form.get("asset")
+
+    if asset in portfolio:
+        portfolio[asset] -= 1
+        if portfolio[asset] <= 0:
+            del portfolio[asset]
+
+    return redirect("/dashboard")
 
 
 if __name__ == "__main__":
