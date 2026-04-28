@@ -1,26 +1,166 @@
-<html>
-<body style="background:#111;color:white;font-family:Arial">
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Hedge Fund Terminal</title>
 
-<h1>📊 InvestTool PRO</h1>
+    <style>
+        body {
+            background-color: #0b0f14;
+            color: #e6e6e6;
+            font-family: Arial, sans-serif;
+        }
 
-<table border="1" cellpadding="6">
-<tr>
-<th>Asset</th>
-<th>Prezzo</th>
-<th>RSI</th>
-<th>Decisione</th>
-</tr>
+        .container {
+            width: 95%;
+            margin: auto;
+        }
 
-{% for r in data %}
-<tr>
-<td>{{r.asset}}</td>
-<td>{{r.price}}</td>
-<td>{{r.rsi}}</td>
-<td>{{r.decision}}</td>
-</tr>
-{% endfor %}
+        h1 {
+            color: #00ff99;
+            text-align: center;
+            margin-top: 20px;
+        }
 
-</table>
+        .panel {
+            background-color: #111826;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+
+        .metrics {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .box {
+            background-color: #1a2332;
+            padding: 15px;
+            margin: 10px;
+            flex: 1;
+            min-width: 200px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .green { color: #00ff99; }
+        .red { color: #ff4d4d; }
+        .yellow { color: #ffcc00; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border-bottom: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            color: #00ff99;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .buy { background-color: #00aa55; }
+        .sell { background-color: #cc3333; }
+        .neutral { background-color: #555; }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🏦 HEDGE FUND TERMINAL</h1>
+
+    <!-- 📊 METRICHE PRINCIPALI -->
+    <div class="panel metrics">
+
+        <div class="box">
+            💰 <br>
+            <strong class="green">{{ capitale }} €</strong>
+            <br> Capitale Totale
+        </div>
+
+        <div class="box">
+            📉 <br>
+            <strong class="red">{{ drawdown }}%</strong>
+            <br> Drawdown
+        </div>
+
+        <div class="box">
+            📊 <br>
+            <strong class="yellow">30</strong>
+            <br> Operazioni recenti
+        </div>
+
+    </div>
+
+    <!-- 📈 ASSET -->
+    <div class="panel">
+        <h2>📈 Segnali di Mercato</h2>
+
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Prezzo</th>
+                <th>Probabilità</th>
+                <th>Segnale</th>
+            </tr>
+
+            {% for d in data %}
+            <tr>
+                <td>{{ d.asset }}</td>
+                <td>{{ d.prezzo }}</td>
+                <td>{{ d.probabilita }}</td>
+
+                <td>
+                    {% if d.segnale == "ACQUISTA" %}
+                        <span class="badge buy">ACQUISTA</span>
+                    {% elif d.segnale == "VENDI" %}
+                        <span class="badge sell">VENDI</span>
+                    {% else %}
+                        <span class="badge neutral">NEUTRO</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <!-- 💼 STORICO -->
+    <div class="panel">
+        <h2>💼 Storico Operazioni</h2>
+
+        <table>
+            <tr>
+                <th>Asset</th>
+                <th>Segnale</th>
+                <th>Prezzo</th>
+                <th>Capitale</th>
+            </tr>
+
+            {% for h in storico %}
+            <tr>
+                <td>{{ h.asset }}</td>
+                <td>{{ h.segnale }}</td>
+                <td>{{ h.prezzo }}</td>
+                <td>{{ h.capitale }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
 
 </body>
 </html>
